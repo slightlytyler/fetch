@@ -1,8 +1,14 @@
 # window.fetch polyfill
 
+This is a fork of [GitHub's fetch polyfill](https://github.com/github/fetch). Its purpose is to get [the fetch polyfill used in React Native](https://github.com/facebook/react-native/blob/master/Libraries/Network/fetch.js) closer to the `whatwg` spec without worrying about breaking older browser versions.
+
+For more context, see [the `github/fetch` issue](https://github.com/github/fetch/issues/746) and [the `react-native` issue](https://github.com/facebook/react-native/issues/27741).
+
+---
+
 The `fetch()` function is a Promise-based mechanism for programmatically making
 web requests in the browser. This project is a polyfill that implements a subset
-of the standard [Fetch specification][], enough to make `fetch` a viable
+of the standard [fetch specification](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API), enough to make `fetch` a viable
 replacement for most uses of XMLHttpRequest in traditional web applications.
 
 ## Table of Contents
