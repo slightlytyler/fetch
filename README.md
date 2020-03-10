@@ -8,7 +8,7 @@ For more context, see [the `github/fetch` issue](https://github.com/github/fetch
 
 The `fetch()` function is a Promise-based mechanism for programmatically making
 web requests in the browser. This project is a polyfill that implements a subset
-of the standard [fetch specification][https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API], enough to make `fetch` a viable
+of the standard [fetch specification](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API), enough to make `fetch` a viable
 replacement for most uses of XMLHttpRequest in traditional web applications.
 
 ## Table of Contents
