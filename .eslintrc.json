@@ -9,7 +9,6 @@
     ],
     "plugins": [
         "@babel/eslint-plugin",
-        "@babel/plugin-proposal-class-properties",
         "flowtype"
     ],
     "settings": {

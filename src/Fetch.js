@@ -1,16 +1,15 @@
 import { Networking } from "react-native";
-import BlobManager from 'react-native/Libraries/Blob/BlobManager';
-import { toByteArray } from 'base64-js';
-import pDefer from 'p-defer';
+import pDefer from "p-defer";
 import Request from "./Request";
 import Response from "./Response";
-import { createBlobReader } from './utils';
+import StreamBlobResponse from './StreamBlobResponse';
+import StreamArrayBufferResponse from './StreamArrayBufferResponse';
 
 class AbortError extends Error {
     constructor() {
         super("Aborted");
         this.name = "AbortError";
-        Error?.captureStackTrace(this, this.constructor);
+        Error.captureStackTrace?.(this, this.constructor);
     }
 }
 
@@ -21,9 +20,7 @@ function createStream(cancel) {
         start(controller) {
             streamController = controller;
         },
-        cancel() {
-            cancel();
-        },
+        cancel,
     });
 
     return {
@@ -34,18 +31,24 @@ function createStream(cancel) {
 
 class Fetch {
     _nativeNetworkSubscriptions = new Set();
-    _nativeResponseType = 'blob';
+    _nativeResponseType = "blob";
     _nativeRequestHeaders = {};
+    _nativeResponseHeaders = {};
+    _nativeRequestTimeout = 0;
     _nativeResponse;
     _textEncoder = new TextEncoder();
-    _responseTextOffset = 0;
     _requestId;
     _response;
     _streamController;
     _deferredPromise;
+    _responseStatus = 0; // requests shall not time out
+    _responseUrl = '';
 
     constructor(resource, options = {}) {
         this._request = new Request(resource, options);
+        this._nativeResponseType = options.reactNative?.textStreaming
+            ? "text"
+            : this._nativeResponseType;
         this._abortFn = this.__abort.bind(this);
         this._deferredPromise = pDefer();
 
@@ -67,7 +70,7 @@ class Fetch {
             "didReceiveNetworkResponse",
             "didReceiveNetworkData",
             "didReceiveNetworkIncrementalData",
-            "didReceiveNetworkDataProgress",
+            // "didReceiveNetworkDataProgress",
             "didCompleteNetworkResponse",
         ].forEach((eventName) => {
             const subscription = Networking.addListener(eventName, (args) => {
@@ -87,7 +90,7 @@ class Fetch {
     __abort() {
         Networking.abortRequest(this._requestId);
         this.__clearNetworkSubscriptions();
-        this._readableStreamController.error(new AbortError());
+        this._streamController?.error(new AbortError());
         this._deferredPromise.reject(new AbortError());
     }
 
@@ -102,20 +105,25 @@ class Fetch {
             this._nativeRequestHeaders,
             this._request._body._bodyInit ?? null,
             this._nativeResponseType,
-            this._nativeResponseType === 'text', // send incremental events only when response type is text
-            0, // requests shall not time out
+            this._nativeResponseType === "text", // send incremental events only when response type is text
+            this._nativeRequestTimeout,
             this.__didCreateRequest.bind(this),
             ["include", "same-origin"].includes(this._request.credentials) // with credentials
         );
     }
 
     __didCreateRequest(requestId) {
-        console.log('fetch __didCreateRequest', { requestId });
+        console.log("fetch __didCreateRequest", { requestId });
         this._requestId = requestId;
     }
 
     __didReceiveNetworkResponse(requestId, status, headers, url) {
-        console.log('fetch __didReceiveNetworkResponse', { requestId, status, headers, url });
+        console.log("fetch __didReceiveNetworkResponse", {
+            requestId,
+            status,
+            headers,
+            url,
+        });
         if (requestId !== this._requestId) {
             return;
         }
@@ -126,12 +134,19 @@ class Fetch {
         });
 
         this._streamController = streamController;
-        this._response = new Response(stream, { status, headers, url });
-        this._deferredPromise.resolve(this._response);
+        this._stream = stream;
+        this._responseStatus = status;
+        this._nativeResponseHeaders = headers;
+        this._responseUrl = url;
+
+        if (this._nativeResponseType === 'text') {
+            this._response = new Response(stream, { status, headers, url });
+            this._deferredPromise.resolve(this._response);
+        }
     }
 
     __didReceiveNetworkData(requestId, response) {
-        console.log('fetch __didReceiveNetworkData', { requestId, response });
+        console.log("fetch __didReceiveNetworkData", { requestId, response });
         if (requestId !== this._requestId) {
             return;
         }
@@ -145,27 +160,35 @@ class Fetch {
         progress,
         total
     ) {
-        console.log('fetch __didReceiveNetworkIncrementalData', { requestId, responseText, progress, total });
+        console.log("fetch __didReceiveNetworkIncrementalData", {
+            requestId,
+            responseText,
+            progress,
+            total,
+        });
         if (requestId !== this._requestId) {
             return;
         }
 
-        const newText = responseText.substring(this._responseTextOffset);
-        const typedArray = this._textEncoder.encode(newText, { stream: true });
-
-        this._responseTextOffset = responseText.length;
+        const typedArray = this._textEncoder.encode(responseText, {
+            stream: true,
+        });
         this._streamController.enqueue(typedArray);
     }
 
-    __didReceiveNetworkDataProgress(requestId, loaded, total) {
-        console.log('fetch __didReceiveNetworkDataProgress', { requestId, loaded, total });
-        if (requestId !== this._requestId) {
-            return;
-        }
-    }
+    // __didReceiveNetworkDataProgress(requestId, loaded, total) {
+    //     console.log('fetch __didReceiveNetworkDataProgress', { requestId, loaded, total });
+    //     if (requestId !== this._requestId) {
+    //         return;
+    //     }
+    // }
 
-    __didCompleteNetworkResponse(requestId, errorMessage, didTimeOut) {
-        console.log('fetch __didCompleteNetworkResponse', { requestId, errorMessage, didTimeOut });
+    async __didCompleteNetworkResponse(requestId, errorMessage, didTimeOut) {
+        console.log("fetch __didCompleteNetworkResponse", {
+            requestId,
+            errorMessage,
+            didTimeOut,
+        });
         if (requestId !== this._requestId) {
             return;
         }
@@ -185,26 +208,37 @@ class Fetch {
             );
         }
 
-        const enqueueSingleChunk = async () => {
-            if (this._nativeResponseType === 'base64') {
-                this._streamController.enqueue(toByteArray(this._nativeResponse));
-            }
-
-            if (this._nativeResponseType === 'blob') {
-                const blob = BlobManager.createFromOptions(this._nativeResponse);
-                const arrayBuffer = await createBlobReader(blob).readAsArrayBuffer();
-
-                this._streamController.enqueue(new Uint8Array(arrayBuffer));
-            }
-
-            this._streamController.close();
-        }
-
-        if (this._nativeResponse) {
-            enqueueSingleChunk();
+        if (!this._nativeResponse) {
+            this.__closeStream();
             return;
         }
 
+        let ResponseClass;
+
+        if (this._nativeResponseType === 'blob') {
+            ResponseClass = StreamBlobResponse;
+        }
+
+        if (this._nativeResponseType === 'base64') {
+            ResponseClass = StreamArrayBufferResponse;
+        }
+
+        this._response = await new ResponseClass(
+            this._nativeResponse,
+            this._stream,
+            this._streamController,
+            {
+                status: this._responseStatus,
+                url: this._responseUrl,
+                headers: this._nativeResponseHeaders,
+            }
+        )
+
+        this._deferredPromise.resolve(this._response);
+        this.__closeStream();
+    }
+
+    __closeStream() {
         this._streamController?.close();
     }
 }

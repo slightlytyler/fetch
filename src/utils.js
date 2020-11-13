@@ -28,7 +28,10 @@ async function drainStream(stream) {
     function readNextChunk() {
         return reader.read().then(({ done, value }) => {
             if (done) {
-                return chunks.reduce((byteArray, chunk) => [...byteArray, ...chunk], []);
+                return chunks.reduce(
+                    (bytes, chunk) => [...bytes, ...chunk],
+                    []
+                );
             }
 
             chunks.push(value);
@@ -37,9 +40,9 @@ async function drainStream(stream) {
         });
     }
 
-    const byteArray = await readNextChunk();
+    const bytes = await readNextChunk();
 
-    return new Uint8Array(byteArray);
+    return new Uint8Array(bytes);
 }
 
 function readArrayAsText(array) {
@@ -48,8 +51,4 @@ function readArrayAsText(array) {
     return decoder.decode(array);
 }
 
-export {
-    createBlobReader,
-    drainStream,
-    readArrayAsText
-}
+export { createBlobReader, drainStream, readArrayAsText };

@@ -1,13 +1,12 @@
-import { createBlobReader, drainStream, readArrayAsText } from './utils';
+import { createBlobReader, drainStream, readArrayAsText } from "./utils";
 
-export default class Body {
+class Body {
     constructor(body) {
         this.bodyUsed = false;
         this._bodyInit = body;
 
         if (!body) {
             this._bodyText = "";
-            this._mimeType = "text/plain;charset=UTF-8";
             return this;
         }
 
@@ -31,15 +30,18 @@ export default class Body {
 
         if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
             this._bodyArrayBuffer = body.slice(0);
+            this._mimeType = "application/octet-stream";
             return this;
         }
 
         if (body instanceof ReadableStream) {
             this._bodyReadableStream = body;
+            this._mimeType = "application/octet-stream";
             return this;
         }
 
         this._bodyText = body.toString();
+        this._mimeType = "text/plain;charset=UTF-8";
     }
 
     __consumed() {
@@ -92,9 +94,15 @@ export default class Body {
 
         if (this._bodyArrayBuffer) {
             if (ArrayBuffer.isView(this._bodyArrayBuffer)) {
-                const { buffer, byteOffset, byteLength } = this._bodyArrayBuffer;
+                const {
+                    buffer,
+                    byteOffset,
+                    byteLength,
+                } = this._bodyArrayBuffer;
 
-                return Promise.resolve(buffer.slice(byteOffset, byteOffset + byteLength));
+                return Promise.resolve(
+                    buffer.slice(byteOffset, byteOffset + byteLength)
+                );
             }
 
             return Promise.resolve(this._bodyArrayBuffer);
@@ -105,7 +113,6 @@ export default class Body {
     }
 
     async text() {
-        console.log('Body text');
         const alreadyConsumed = this.__consumed();
         if (alreadyConsumed) {
             return alreadyConsumed;
@@ -167,3 +174,5 @@ export default class Body {
         return this._bodyReadableStream;
     }
 }
+
+export default Body;

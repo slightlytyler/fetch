@@ -2,6 +2,9 @@ import Body from "./Body";
 import Headers from "./Headers";
 
 class Request {
+    credentials = "same-origin";
+    method = "GET";
+
     constructor(input, options = {}) {
         this.url = input;
 
@@ -13,8 +16,8 @@ class Request {
             this.__handleRequestInput(input, options);
         }
 
-        this._body = this._body ?? new Body(options.body)
-        this.method = options.method ?? this.method ?? "GET";
+        this._body = this._body ?? new Body(options.body);
+        this.method = options.method ?? this.method;
 
         if (this._body._bodyInit && ["GET", "HEAD"].includes(this.method)) {
             throw new TypeError("Body not allowed for GET or HEAD requests");
@@ -24,13 +27,12 @@ class Request {
             throw new TypeError("Streaming request bodies is not supported");
         }
 
-        this.credentials =
-            options.credentials ?? this.credentials ?? "same-origin";
+        this.credentials = options.credentials ?? this.credentials;
         this.headers = this.headers ?? new Headers(options.headers);
         this.signal = options.signal ?? this.signal;
 
-        if (!this.headers.has('content-type') && this._body._mimeType) {
-            this.headers.set('content-type', this._body._mimeType);
+        if (!this.headers.has("content-type") && this._body._mimeType) {
+            this.headers.set("content-type", this._body._mimeType);
         }
     }
 

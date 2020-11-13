@@ -11,8 +11,8 @@ class Response {
         this.url = options.url ?? "";
         this._body = new Body(body);
 
-        if (!this.headers.has('content-type') && this._body._mimeType) {
-            this.headers.set('content-type', this._body._mimeType);
+        if (!this.headers.has("content-type") && this._body._mimeType) {
+            this.headers.set("content-type", this._body._mimeType);
         }
     }
 
