@@ -6,7 +6,7 @@ const { promisify } = require("util");
 const routes = {
     "/request": function (res, req) {
         res.writeHead(200, { "Content-Type": "application/json" });
-        var data = "";
+        let data = "";
         req.on("data", function (c) {
             data += c;
         });
@@ -33,7 +33,7 @@ const routes = {
             "Content-Type": "text/plain; charset=utf-8",
         });
         // "hello"
-        var buf = Buffer.from([104, 101, 108, 108, 111]);
+        const buf = Buffer.from([104, 101, 108, 108, 111]);
         res.end(buf);
     },
     "/hello/utf16le": function (res) {
@@ -41,13 +41,13 @@ const routes = {
             "Content-Type": "text/plain; charset=utf-16le",
         });
         // "hello"
-        var buf = Buffer.from([104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
+        const buf = Buffer.from([104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
         res.end(buf);
     },
     "/binary": function (res) {
         res.writeHead(200, { "Content-Type": "application/octet-stream" });
-        var buf = Buffer.alloc(256);
-        for (var i = 0; i < 256; i++) {
+        const buf = Buffer.alloc(256);
+        for (let i = 0; i < 256; i++) {
             buf[i] = i;
         }
         res.end(buf);
@@ -106,8 +106,8 @@ const routes = {
         res.end("not json {");
     },
     "/cookie": function (res, req) {
-        var setCookie, cookie;
-        var params = querystring.parse(url.parse(req.url).query);
+        let setCookie, cookie;
+        const params = querystring.parse(url.parse(req.url).query);
         if (params.name && params.value) {
             setCookie = [params.name, params.value].join("=");
         }

@@ -3,24 +3,29 @@ import Response from "./Response";
 import { createBlobReader } from "./utils";
 
 class StreamBlobResponse {
-    constructor(blobData, stream, streamController, options, blobArrayBuffer) {
+    constructor(
+        blobData,
+        stream,
+        streamController,
+        options /* , blobArrayBuffer */
+    ) {
         const blob = BlobManager.createFromOptions(blobData);
         this._blobData = blobData;
         this._blobResponse = new Response(blob, options);
         this._streamResponse = new Response(stream, options);
 
-        if (blobArrayBuffer) {
-            this._blobArrayBuffer = blobArrayBuffer;
-            this._arrayBufferResponse = new Response(blobArrayBuffer, options);
-            streamController.enqueue(new Uint8Array(blobArrayBuffer));
+        // if (blobArrayBuffer) {
+        //     this._blobArrayBuffer = blobArrayBuffer;
+        //     this._arrayBufferResponse = new Response(blobArrayBuffer, options);
+        //     streamController.enqueue(new Uint8Array(blobArrayBuffer));
 
-            return this;
-        }
+        //     return this;
+        // }
 
         return createBlobReader(blob)
             .readAsArrayBuffer()
             .then((arrayBuffer) => {
-                this._blobArrayBuffer = arrayBuffer;
+                // this._blobArrayBuffer = arrayBuffer;
                 this._arrayBufferResponse = new Response(arrayBuffer, options);
                 streamController.enqueue(new Uint8Array(arrayBuffer));
 

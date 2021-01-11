@@ -46,9 +46,6 @@ class Fetch {
 
     constructor(resource, options = {}) {
         this._request = new Request(resource, options);
-        this._nativeResponseType = options.reactNative?.textStreaming
-            ? "text"
-            : this._nativeResponseType;
         this._abortFn = this.__abort.bind(this);
         this._deferredPromise = pDefer();
 
@@ -60,9 +57,21 @@ class Fetch {
             throw new AbortError();
         }
 
+        this.__setNativeResponseType(options);
         this.__doFetch();
 
         return this._deferredPromise.promise;
+    }
+
+    __setNativeResponseType(options) {
+        if (options.textStreaming) {
+            this._nativeResponseType = "text";
+
+            return;
+        }
+
+        this._nativeResponseType =
+            options.__nativeResponseType ?? this._nativeResponseType;
     }
 
     __subscribeToNetworkEvents() {
@@ -113,17 +122,18 @@ class Fetch {
     }
 
     __didCreateRequest(requestId) {
-        console.log("fetch __didCreateRequest", { requestId });
+        // console.log("fetch __didCreateRequest", { requestId });
         this._requestId = requestId;
     }
 
     __didReceiveNetworkResponse(requestId, status, headers, url) {
-        console.log("fetch __didReceiveNetworkResponse", {
-            requestId,
-            status,
-            headers,
-            url,
-        });
+        // console.log("fetch __didReceiveNetworkResponse", {
+        //     requestId,
+        //     status,
+        //     headers,
+        //     url,
+        // });
+
         if (requestId !== this._requestId) {
             return;
         }
@@ -146,7 +156,7 @@ class Fetch {
     }
 
     __didReceiveNetworkData(requestId, response) {
-        console.log("fetch __didReceiveNetworkData", { requestId, response });
+        // console.log("fetch __didReceiveNetworkData", { requestId, response });
         if (requestId !== this._requestId) {
             return;
         }
@@ -160,12 +170,12 @@ class Fetch {
         progress,
         total
     ) {
-        console.log("fetch __didReceiveNetworkIncrementalData", {
-            requestId,
-            responseText,
-            progress,
-            total,
-        });
+        // console.log("fetch __didReceiveNetworkIncrementalData", {
+        //     requestId,
+        //     responseText,
+        //     progress,
+        //     total,
+        // });
         if (requestId !== this._requestId) {
             return;
         }
@@ -184,11 +194,12 @@ class Fetch {
     // }
 
     async __didCompleteNetworkResponse(requestId, errorMessage, didTimeOut) {
-        console.log("fetch __didCompleteNetworkResponse", {
-            requestId,
-            errorMessage,
-            didTimeOut,
-        });
+        // console.log("fetch __didCompleteNetworkResponse", {
+        //     requestId,
+        //     errorMessage,
+        //     didTimeOut,
+        // });
+
         if (requestId !== this._requestId) {
             return;
         }
@@ -223,19 +234,23 @@ class Fetch {
             ResponseClass = StreamArrayBufferResponse;
         }
 
-        this._response = await new ResponseClass(
-            this._nativeResponse,
-            this._stream,
-            this._streamController,
-            {
-                status: this._responseStatus,
-                url: this._responseUrl,
-                headers: this._nativeResponseHeaders,
-            }
-        );
-
-        this._deferredPromise.resolve(this._response);
-        this.__closeStream();
+        try {
+            this._response = await new ResponseClass(
+                this._nativeResponse,
+                this._stream,
+                this._streamController,
+                {
+                    status: this._responseStatus,
+                    url: this._responseUrl,
+                    headers: this._nativeResponseHeaders,
+                }
+            );
+            this._deferredPromise.resolve(this._response);
+        } catch (error) {
+            this._deferredPromise.reject(error);
+        } finally {
+            this.__closeStream();
+        }
     }
 
     __closeStream() {

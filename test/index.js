@@ -1,7 +1,7 @@
 import "react-native-polyfill-globals/auto";
 import { test } from "zora";
 import delay from "delay";
-import { Headers, Request, Response } from "../";
+import { Headers, Request, Response, fetch } from "../";
 
 function createBlobReader(blob) {
     const reader = new FileReader();
@@ -563,7 +563,7 @@ test("request", (t) => {
         t.eq(await createBlobReader(blob).readAsText(), text);
     });
 
-    // Tests fails while React Native does not implement FileReader.readAsArrayBuffer
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
     t.skip(
         "consume request body as ArrayBuffer when input is text",
         async (t) => {
@@ -790,7 +790,7 @@ test("response", (t) => {
         t.eq(await createBlobReader(blob).readAsText(), text);
     });
 
-    // Tests fails while React Native does not implement FileReader.readAsArrayBuffer
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
     t.skip(
         "consume request body as ArrayBuffer when input is text",
         async (t) => {
@@ -839,8 +839,8 @@ test("response", (t) => {
         "consume request body as Blob when input is ArrayBufferView",
         async (t) => {
             const array = createTypedArrayFromText("Hello world!");
-            const req = new Request("", { method: "POST", body: array });
-            const blob = await req.blob();
+            const res = new Response("", { method: "POST", body: array });
+            const blob = await res.blob();
 
             t.eq(await createBlobReader(blob).readAsText(), "Hello world!");
         }
@@ -943,4 +943,138 @@ test("response", (t) => {
             t.eq(text, "Hello world!");
         }
     );
+});
+
+test("body mixin", (t) => {
+    const BASE_URL = "http://localhost:8082";
+
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    t.skip("resolves arrayBuffer promise", async (t) => {
+        const url = new URL("/hello", BASE_URL);
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+
+        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+        t.eq(buf.byteLength, 2);
+    });
+
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    t.skip("arrayBuffer handles binary data", async (t) => {
+        const url = new URL("/binary", BASE_URL);
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+
+        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+        t.eq(buf.byteLength, 256, "buf.byteLength is correct");
+
+        const expected = Array.from({ length: 256 }, (_, i) => i);
+        const actual = Array.from(new Uint8Array(buf));
+
+        t.eq(actual, expected);
+    });
+
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    t.skip("arrayBuffer handles utf-8 data", async (t) => {
+        const url = new URL("/hello/utf8", BASE_URL);
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+
+        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+        t.eq(buf.byteLength, 5, "buf.byteLength is correct");
+
+        const array = Array.from(new Uint8Array(buf));
+        t.eq(array, [104, 101, 108, 108, 111]);
+    });
+
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    t.skip("arrayBuffer handles utf-16le data", async (t) => {
+        const url = new URL("/hello/utf16le", BASE_URL);
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+
+        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+        t.eq(buf.byteLength, 10, "buf.byteLength is correct");
+
+        const array = Array.from(new Uint8Array(buf));
+        t.eq(array, [104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
+    });
+
+    t.test("native base64", (t) => {
+        t.test("arrayBuffer handles binary data", async (t) => {
+            const url = new URL("/binary", BASE_URL);
+            const res = await fetch(url, { __nativeResponseType: "base64" });
+            const buf = await res.arrayBuffer();
+
+            t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+            t.eq(buf.byteLength, 256, "buf.byteLength is correct");
+
+            const expected = Array.from({ length: 256 }, (_, i) => i);
+            const actual = Array.from(new Uint8Array(buf));
+
+            t.eq(actual, expected);
+        });
+
+        t.test("arrayBuffer handles binary data (native base64)", async (t) => {
+            const url = new URL("/binary", BASE_URL);
+            const res = await fetch(url, { __nativeResponseType: "base64" });
+            const buf = await res.arrayBuffer();
+
+            t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+            t.eq(buf.byteLength, 256, "buf.byteLength is correct");
+
+            const expected = Array.from({ length: 256 }, (_, i) => i);
+            const actual = Array.from(new Uint8Array(buf));
+
+            t.eq(actual, expected);
+        });
+
+        t.test("arrayBuffer handles utf-8 data", async (t) => {
+            const url = new URL("/hello/utf8", BASE_URL);
+            const res = await fetch(url, { __nativeResponseType: "base64" });
+            const buf = await res.arrayBuffer();
+
+            t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+            t.eq(buf.byteLength, 5, "buf.byteLength is correct");
+
+            const array = Array.from(new Uint8Array(buf));
+            t.eq(array, [104, 101, 108, 108, 111]);
+        });
+
+        t.test("arrayBuffer handles utf-16le data", async (t) => {
+            const url = new URL("/hello/utf16le", BASE_URL);
+            const res = await fetch(url, { __nativeResponseType: "base64" });
+            const buf = await res.arrayBuffer();
+
+            t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+            t.eq(buf.byteLength, 10, "buf.byteLength is correct");
+
+            const array = Array.from(new Uint8Array(buf));
+            t.eq(array, [104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
+        });
+    });
+
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    t.skip("rejects arrayBuffer promise after body is consumed", async (t) => {
+        const url = new URL("/hello", BASE_URL);
+        const res = await fetch(url);
+
+        t.eq(res.bodyUsed, false);
+        await res.blob();
+        t.eq(res.bodyUsed, true);
+        t.throws(
+            () => res.arrayBuffer(),
+            TypeError,
+            "Promise rejected after body consumed"
+        );
+    });
+
+    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    t.skip("resolves blob promise", async (t) => {
+        const url = new URL("/hello", BASE_URL);
+        const res = await fetch(url);
+        const blob = await res.blob();
+
+        t.ok(blob instanceof Blob, "blob is a Blob instance");
+        t.eq(blob.size, 2);
+    });
 });
