@@ -1,6 +1,7 @@
 import "react-native-polyfill-globals/auto";
 import { test } from "zora";
-import { Headers, Request } from "../";
+import delay from "delay";
+import { Headers, Request, Response } from "../";
 
 function createBlobReader(blob) {
     const reader = new FileReader();
@@ -35,6 +36,30 @@ function createTypedArrayFromText(text) {
     const decoder = new TextEncoder();
 
     return decoder.encode(text);
+}
+
+async function drainStream(stream) {
+    const chunks = [];
+    const reader = stream.getReader();
+
+    function readNextChunk() {
+        return reader.read().then(({ done, value }) => {
+            if (done) {
+                return chunks.reduce(
+                    (bytes, chunk) => [...bytes, ...chunk],
+                    []
+                );
+            }
+
+            chunks.push(value);
+
+            return readNextChunk();
+        });
+    }
+
+    const bytes = await readNextChunk();
+
+    return new Uint8Array(bytes);
 }
 
 test("headers", (t) => {
@@ -258,14 +283,14 @@ test("request", (t) => {
     });
 
     t.test("construct with string url", (t) => {
-        const request = new Request("https://fetch.spec.whatwg.org/");
-        t.eq(request.url, "https://fetch.spec.whatwg.org/");
+        const req = new Request("https://fetch.spec.whatwg.org/");
+        t.eq(req.url, "https://fetch.spec.whatwg.org/");
     });
 
     t.test("construct with URL instance", (t) => {
-        var url = new URL("https://fetch.spec.whatwg.org/pathname");
-        var request = new Request(url);
-        t.eq(request.url.toString(), "https://fetch.spec.whatwg.org/pathname");
+        const url = new URL("https://fetch.spec.whatwg.org/pathname");
+        const req = new Request(url);
+        t.eq(req.url.toString(), "https://fetch.spec.whatwg.org/pathname");
     });
 
     t.test("construct with non-request object", (t) => {
@@ -274,8 +299,8 @@ test("request", (t) => {
                 return "https://fetch.spec.whatwg.org/";
             },
         };
-        const request = new Request(url);
-        t.eq(request.url.toString(), "https://fetch.spec.whatwg.org/");
+        const req = new Request(url);
+        t.eq(req.url.toString(), "https://fetch.spec.whatwg.org/");
     });
 
     t.test("construct with request", async (t) => {
@@ -512,105 +537,408 @@ test("request", (t) => {
     });
 
     t.test("credentials defaults to same-origin", (t) => {
-        const request = new Request("");
+        const req = new Request("");
 
-        t.eq(request.credentials, "same-origin");
+        t.eq(req.credentials, "same-origin");
     });
 
     t.test("credentials is overridable", (t) => {
-        const request = new Request("", { credentials: "omit" });
+        const req = new Request("", { credentials: "omit" });
 
-        t.eq(request.credentials, "omit");
+        t.eq(req.credentials, "omit");
     });
 
     t.test("consume request body as text when input is text", async (t) => {
         const text = "Hello world!";
-        const request = new Request("", { method: "POST", body: text });
+        const req = new Request("", { method: "POST", body: text });
 
-        t.eq(await request.text(), text);
+        t.eq(await req.text(), text);
     });
 
-    t.test("consume request body as blob when input is text", async (t) => {
+    t.test("consume request body as Blob when input is text", async (t) => {
         const text = "Hello world!";
-        const request = new Request("", { method: "POST", body: text });
-        const blob = await request.blob();
+        const req = new Request("", { method: "POST", body: text });
+        const blob = await req.blob();
 
         t.eq(await createBlobReader(blob).readAsText(), text);
     });
 
     // Tests fails while React Native does not implement FileReader.readAsArrayBuffer
     t.skip(
-        "consume request body as arraybuffer when input is text",
+        "consume request body as ArrayBuffer when input is text",
         async (t) => {
             const text = "Hello world!";
-            const request = new Request("", { method: "POST", body: text });
-            const arrayBuffer = await request.arrayBuffer();
+            const req = new Request("", { method: "POST", body: text });
+            const arrayBuffer = await req.arrayBuffer();
 
             t.eq(readArrayBufferAsText(arrayBuffer), text);
         }
     );
 
     t.test(
-        "consume request body as text when input is array buffer",
+        "consume request body as text when input is ArrayBuffer",
         async (t) => {
-            const array = createTypedArrayFromText("Hello world!").buffer;
-            const request = new Request("", { method: "POST", body: array });
+            const array = createTypedArrayFromText("Hello world!");
+            const req = new Request("", { method: "POST", body: array.buffer });
 
-            t.eq(await request.text(), "Hello world!");
+            t.eq(await req.text(), "Hello world!");
         }
     );
 
     t.test(
-        "consume request body as text when input is array view",
+        "consume request body as text when input is ArrayBufferView",
         async (t) => {
             const array = createTypedArrayFromText("Hello world!");
-            const request = new Request("", { method: "POST", body: array });
+            const req = new Request("", { method: "POST", body: array });
 
-            t.eq(await request.text(), "Hello world!");
+            t.eq(await req.text(), "Hello world!");
         }
     );
 
-    // React Native does not support Blob construction with arrays
+    // React Native does not support Blob construction from ArrayBuffer or ArrayBufferView
     t.skip(
-        "consume request body as blob when input is array buffer",
+        "consume request body as Blob when input is ArrayBuffer",
         async (t) => {
-            const array = createTypedArrayFromText("Hello world!").buffer;
-            const request = new Request("", { method: "POST", body: array });
-            const blob = await request.blob();
+            const array = createTypedArrayFromText("Hello world!");
+            const req = new Request("", { method: "POST", body: array.buffer });
+            const blob = await req.blob();
 
             t.eq(await createBlobReader(blob).readAsText(), "Hello world!");
         }
     );
 
-    // React Native does not support Blob construction with arrays
+    // React Native does not support Blob construction from ArrayBuffer or ArrayBufferView
     t.skip(
-        "consume request body as blob when input is array view",
+        "consume request body as Blob when input is ArrayBufferView",
         async (t) => {
             const array = createTypedArrayFromText("Hello world!");
-            const request = new Request("", { method: "POST", body: array });
-            const blob = await request.blob();
+            const req = new Request("", { method: "POST", body: array });
+            const blob = await req.blob();
 
             t.eq(await createBlobReader(blob).readAsText(), "Hello world!");
         }
     );
 
     t.test(
-        "consume request body as array buffer when input is array buffer",
+        "consume request body as ArrayBuffer when input is ArrayBuffer",
         async (t) => {
             const array = createTypedArrayFromText("Hello world!");
-            const request = new Request("", { method: "POST", body: array });
-            const text = new TextDecoder().decode(await request.arrayBuffer());
+            const req = new Request("", { method: "POST", body: array });
+            const text = new TextDecoder().decode(await req.arrayBuffer());
 
             t.eq(text, "Hello world!");
         }
     );
 
     t.test(
-        "consume request body as array buffer when input is array view",
+        "consume request body as ArrayBuffer when input is ArrayBufferView",
         async (t) => {
             const array = createTypedArrayFromText("Hello world!");
-            const request = new Request("", { method: "POST", body: array });
-            const text = new TextDecoder().decode(await request.arrayBuffer());
+            const req = new Request("", { method: "POST", body: array });
+            const text = new TextDecoder().decode(await req.arrayBuffer());
+
+            t.eq(text, "Hello world!");
+        }
+    );
+});
+
+test("response", (t) => {
+    t.test("default status is 200", (t) => {
+        const res = new Response();
+
+        t.eq(res.status, 200);
+        t.eq(res.statusText, "");
+        t.ok(res.ok);
+    });
+
+    t.test(
+        "default status is 200 when an explicit undefined status is passed",
+        (t) => {
+            const res = new Response("", { status: undefined });
+
+            t.eq(res.status, 200);
+            t.eq(res.statusText, "");
+            t.ok(res.ok);
+        }
+    );
+
+    t.test("should throw when called without constructor", (t) => {
+        t.throws(() => {
+            Response('{"foo":"bar"}', {
+                headers: { "content-type": "application/json" },
+            });
+        });
+    });
+
+    t.test("creates headers object from raw headers", async (t) => {
+        const res = new Response('{"foo":"bar"}', {
+            headers: { "content-type": "application/json" },
+        });
+        const json = await res.json();
+
+        t.ok(res.headers instanceof Headers);
+        t.eq(json.foo, "bar");
+    });
+
+    t.test("always creates a new headers instance", (t) => {
+        const headers = new Headers({ "x-hello": "world" });
+        const res = new Response("", { headers });
+
+        t.eq(res.headers.get("x-hello"), "world");
+        t.isNot(res.headers, headers);
+    });
+
+    t.test("clone text response", async (t) => {
+        const res = new Response('{"foo":"bar"}', {
+            headers: { "content-type": "application/json" },
+        });
+        const clone = res.clone();
+
+        t.isNot(clone.headers, res.headers, "headers were cloned");
+        t.eq(clone.headers.get("content-type"), "application/json");
+
+        const jsons = await Promise.all([clone.json(), res.json()]);
+        t.eq(
+            jsons[0],
+            jsons[1],
+            "json of cloned object is the same as original"
+        );
+    });
+
+    t.test("error creates error Response", (t) => {
+        const res = Response.error();
+
+        t.ok(res instanceof Response);
+        t.eq(res.status, 0);
+        t.eq(res.statusText, "");
+        t.eq(res.type, "error");
+    });
+
+    t.test("redirect creates redirect Response", (t) => {
+        const res = Response.redirect("https://fetch.spec.whatwg.org/", 301);
+
+        t.ok(res instanceof Response);
+        t.eq(res.status, 301);
+        t.eq(res.headers.get("Location"), "https://fetch.spec.whatwg.org/");
+    });
+
+    t.test("construct with string body sets Content-Type header", (t) => {
+        const res = new Response("I work out");
+
+        t.eq(res.headers.get("content-type"), "text/plain;charset=UTF-8");
+    });
+
+    t.test(
+        "construct with Blob body and type sets Content-Type header",
+        (t) => {
+            const res = new Response(
+                new Blob(["test"], { type: "text/plain" })
+            );
+
+            t.eq(res.headers.get("content-type"), "text/plain");
+        }
+    );
+
+    t.test("construct with body and explicit header uses header", (t) => {
+        const res = new Response("I work out", {
+            headers: {
+                "Content-Type": "text/plain",
+            },
+        });
+
+        t.eq(res.headers.get("content-type"), "text/plain");
+    });
+
+    t.test("init object as first argument", async (t) => {
+        const res = new Response({
+            status: 201,
+            headers: {
+                "Content-Type": "text/html",
+            },
+        });
+
+        t.eq(res.status, 200);
+        t.eq(res.headers.get("content-type"), "text/plain;charset=UTF-8");
+
+        const text = await res.text();
+
+        t.eq(text, "[object Object]");
+    });
+
+    t.test("null as first argument", async (t) => {
+        const res = new Response(null);
+
+        t.is(res.headers.get("content-type"), null);
+
+        const text = await res.text();
+
+        t.eq(text, "");
+    });
+
+    t.test("consume response body as text when input is text", async (t) => {
+        const text = "Hello world!";
+        const req = new Response(text);
+
+        t.eq(await req.text(), text);
+    });
+
+    t.test("consume response body as Blob when input is text", async (t) => {
+        const text = "Hello world!";
+        const res = new Response(text);
+        const blob = await res.blob();
+
+        t.eq(await createBlobReader(blob).readAsText(), text);
+    });
+
+    // Tests fails while React Native does not implement FileReader.readAsArrayBuffer
+    t.skip(
+        "consume request body as ArrayBuffer when input is text",
+        async (t) => {
+            const text = "Hello world!";
+            const res = new Response(text);
+            const arrayBuffer = await res.arrayBuffer();
+
+            t.eq(readArrayBufferAsText(arrayBuffer), text);
+        }
+    );
+
+    t.test(
+        "consume request body as text when input is ArrayBuffer",
+        async (t) => {
+            const array = createTypedArrayFromText("Hello world!");
+            const res = new Response(array.buffer);
+
+            t.eq(await res.text(), "Hello world!");
+        }
+    );
+
+    t.test(
+        "consume request body as text when input is ArrayBufferView",
+        async (t) => {
+            const array = createTypedArrayFromText("Hello world!");
+            const res = new Response(array);
+
+            t.eq(await res.text(), "Hello world!");
+        }
+    );
+
+    // React Native does not support Blob construction from ArrayBuffer or ArrayBufferView
+    t.skip(
+        "consume request body as Blob when input is ArrayBuffer",
+        async (t) => {
+            const array = createTypedArrayFromText("Hello world!").buffer;
+            const res = new Response(array.buffer);
+            const blob = await res.blob();
+
+            t.eq(await createBlobReader(blob).readAsText(), "Hello world!");
+        }
+    );
+
+    // React Native does not support Blob construction from ArrayBuffer or ArrayBufferView
+    t.skip(
+        "consume request body as Blob when input is ArrayBufferView",
+        async (t) => {
+            const array = createTypedArrayFromText("Hello world!");
+            const req = new Request("", { method: "POST", body: array });
+            const blob = await req.blob();
+
+            t.eq(await createBlobReader(blob).readAsText(), "Hello world!");
+        }
+    );
+
+    t.test(
+        "consume request body as ArrayBuffer when input is ArrayBuffer",
+        async (t) => {
+            const array = createTypedArrayFromText("Hello world!");
+            const res = new Response(array);
+            const text = new TextDecoder().decode(await res.arrayBuffer());
+
+            t.eq(text, "Hello world!");
+        }
+    );
+
+    t.test(
+        "consume request body as ArrayBuffer when input is ArrayBufferView",
+        async (t) => {
+            const array = createTypedArrayFromText("Hello world!");
+            const res = new Response(array);
+            const text = new TextDecoder().decode(await res.arrayBuffer());
+
+            t.eq(text, "Hello world!");
+        }
+    );
+
+    t.test("consume request body as stream when input is stream", async (t) => {
+        const rs = new ReadableStream({
+            async pull(c) {
+                await delay(100);
+                c.enqueue(createTypedArrayFromText("Hello "));
+                await delay(100);
+                c.enqueue(createTypedArrayFromText("world"));
+                await delay(100);
+                c.enqueue(createTypedArrayFromText("!"));
+                c.close();
+            },
+        });
+        const res = new Response(rs);
+        const text = new TextDecoder().decode(await drainStream(res.body));
+
+        t.eq(text, "Hello world!");
+    });
+
+    t.test("consume request body as text when input is stream", async (t) => {
+        const rs = new ReadableStream({
+            async pull(c) {
+                await delay(100);
+                c.enqueue(createTypedArrayFromText("Hello "));
+                await delay(100);
+                c.enqueue(createTypedArrayFromText("world"));
+                await delay(100);
+                c.enqueue(createTypedArrayFromText("!"));
+                c.close();
+            },
+        });
+        const res = new Response(rs);
+        const text = await res.text();
+
+        t.eq(text, "Hello world!");
+    });
+
+    // React Native does not support Blob construction from ArrayBuffer or ArrayBufferView
+    t.skip("consume request body as Blob when input is stream", async (t) => {
+        const rs = new ReadableStream({
+            async pull(c) {
+                await delay(250);
+                c.enqueue(createTypedArrayFromText("Hello "));
+                await delay(250);
+                c.enqueue(createTypedArrayFromText("world"));
+                await delay(250);
+                c.enqueue(createTypedArrayFromText("!"));
+                c.close();
+            },
+        });
+        const res = new Response(rs);
+        const text = await res.text();
+
+        t.eq(text, "Hello world!");
+    });
+
+    t.test(
+        "consume request body as ArrayBuffer when input is stream",
+        async (t) => {
+            const rs = new ReadableStream({
+                async pull(c) {
+                    await delay(100);
+                    c.enqueue(createTypedArrayFromText("Hello "));
+                    await delay(100);
+                    c.enqueue(createTypedArrayFromText("world"));
+                    await delay(100);
+                    c.enqueue(createTypedArrayFromText("!"));
+                    c.close();
+                },
+            });
+            const res = new Response(rs);
+            const text = new TextDecoder().decode(await res.arrayBuffer());
 
             t.eq(text, "Hello world!");
         }

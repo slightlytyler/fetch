@@ -1,5 +1,7 @@
 const url = require("url");
 const querystring = require("querystring");
+const http = require("http");
+const { promisify } = require("util");
 
 const routes = {
     "/request": function (res, req) {
@@ -127,12 +129,17 @@ const routes = {
     },
 };
 
-module.exports = function (req, res, next) {
-    const path = url.parse(req.url).pathname;
-    const route = routes[path];
-    if (route) {
+module.exports = ({ port = 8082 } = {}) => {
+    const server = http.createServer((req, res) => {
+        const path = url.parse(req.url).pathname;
+        const route = routes[path];
+
         route(res, req);
-    } else {
-        next();
-    }
+    });
+    const originalClose = server.close.bind(server);
+
+    server.listen(port);
+    server.close = () => promisify(originalClose);
+
+    return server;
 };
