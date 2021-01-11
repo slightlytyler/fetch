@@ -45,10 +45,10 @@ async function drainStream(stream) {
     return new Uint8Array(bytes);
 }
 
-function readArrayAsText(array) {
+function readArrayBufferAsText(array) {
     const decoder = new TextDecoder();
 
     return decoder.decode(array);
 }
 
-export { createBlobReader, drainStream, readArrayAsText };
+export { createBlobReader, drainStream, readArrayBufferAsText };

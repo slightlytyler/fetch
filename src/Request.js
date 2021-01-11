@@ -41,7 +41,7 @@ class Request {
         this.credentials = request.credentials;
         this.method = request.method;
         this.signal = request.signal;
-        this.headers = options.headers ?? new Headers(request.headers);
+        this.headers = new Headers(options.headers ?? request.headers);
 
         if (!options.body && request._body._bodyInit) {
             this._body = new Body(request._body._bodyInit);

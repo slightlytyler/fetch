@@ -9,7 +9,7 @@ function normalizeName(name) {
         throw new TypeError("Header field name is empty");
     }
 
-    if (/[^a-z0-9\-#$%&'*+.^_`|~]/i.test(name)) {
+    if (/[^a-z0-9\-#$%&'*+.^_`|~!]/i.test(name)) {
         throw new TypeError(`Invalid character in header field name: ${name}`);
     }
 
@@ -28,12 +28,24 @@ class Headers {
 
     constructor(init = {}) {
         if (init instanceof Headers) {
-            init.forEach((value, name) => this.append(name, value));
-        } else {
-            Object.getOwnPropertyNames(init).forEach((name) =>
-                this.append(name, init[name])
-            );
+            init.forEach(function (value, name) {
+                this.append(name, value);
+            }, this);
+
+            return this;
         }
+
+        if (Array.isArray(init)) {
+            init.forEach(function ([name, value]) {
+                this.append(name, value);
+            }, this);
+
+            return this;
+        }
+
+        Object.getOwnPropertyNames(init).forEach((name) =>
+            this.append(name, init[name])
+        );
     }
 
     append(name, value) {
@@ -49,8 +61,8 @@ class Headers {
         this.map.delete(normalizeName(name));
     }
 
-    get() {
-        const name = normalizeName(name);
+    get(name) {
+        name = normalizeName(name);
         return this.has(name) ? this.map.get(name) : null;
     }
 
@@ -63,7 +75,9 @@ class Headers {
     }
 
     forEach(callback, thisArg) {
-        this.map.forEach(callback, thisArg);
+        this.map.forEach(function (value, name) {
+            callback.call(thisArg, value, name, this);
+        }, this);
     }
 
     keys() {

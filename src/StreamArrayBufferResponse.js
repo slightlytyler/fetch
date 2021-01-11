@@ -1,5 +1,5 @@
 import { toByteArray } from "base64-js";
-import Response from './Response';
+import Response from "./Response";
 
 class StreamArrayBufferResponse {
     constructor(base64, stream, streamController, options) {
@@ -35,7 +35,9 @@ class StreamArrayBufferResponse {
     }
 
     get bodyUsed() {
-        return this._streamResponse.bodyUsed || this._arrayBufferResponse.bodyUsed;
+        return (
+            this._streamResponse.bodyUsed || this._arrayBufferResponse.bodyUsed
+        );
     }
 
     clone() {
@@ -43,20 +45,15 @@ class StreamArrayBufferResponse {
         const stream = new ReadableStream({
             start(c) {
                 controller = c;
-            }
-        })
+            },
+        });
 
-        return new StreamArrayBufferResponse(
-            this._base64,
-            stream,
-            controller,
-            {
-                status: this._arrayBufferResponse.status,
-                statusText: this._arrayBufferResponse.statusText,
-                headers: new Headers(this._arrayBufferResponse.headers),
-                url: this._arrayBufferResponse.url
-            }
-        );
+        return new StreamArrayBufferResponse(this._base64, stream, controller, {
+            status: this._arrayBufferResponse.status,
+            statusText: this._arrayBufferResponse.statusText,
+            headers: new Headers(this._arrayBufferResponse.headers),
+            url: this._arrayBufferResponse.url,
+        });
     }
 
     blob() {

@@ -21,6 +21,7 @@
         "Blob": true,
         "FileReader": true,
         "TextDecoder": true,
-        "TextEncoder": true
+        "TextEncoder": true,
+        "Buffer": true
     }
 }

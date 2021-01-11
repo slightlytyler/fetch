@@ -1,40 +1,41 @@
 {
   "name": "@react-native-community/fetch",
-  "description": "A fetch API polyfill for React Native with text streaming support on top of RCTNetwoking.",
+  "description": "A fetch API polyfill for React Native with text streaming support built on top of RCTNetwoking.",
   "version": "1.0.0",
   "main": "fetch.js",
   "author": "André Costa Lima <andreclima.pt@gmail.com> (https://github.com/acostalima/)",
   "repository": "@react-native-community/fetch",
   "license": "MIT",
+  "keywords": [
+    "react-native",
+    "fetch"
+  ],
   "devDependencies": {
-    "@babel/cli": "^7.12.1",
     "@babel/core": "^7.12.3",
     "@babel/eslint-parser": "^7.12.1",
     "@babel/eslint-plugin": "^7.12.1",
     "@babel/plugin-syntax-class-properties": "^7.12.1",
-    "@babel/preset-env": "^7.12.1",
     "@babel/preset-flow": "^7.12.1",
     "@react-native-community/eslint-config": "^2.0.0",
+    "delay": "^4.4.0",
     "eslint": "^6.5.1",
     "eslint-config-prettier": "^6.15.0",
     "eslint-plugin-flowtype": "^5.2.0",
-    "flow-bin": "^0.136.0"
+    "flow-bin": "^0.136.0",
+    "react-native-polyfill-globals": "^1.0.7",
+    "react-native-test-runner": "^1.0.8"
   },
   "files": [
     "src",
     "fetch.js"
   ],
   "scripts": {
-    "build": "babel src/ -d lib/ --delete-dir-on-start",
     "flow": "flow",
     "lint": "eslint --cache --ignore-path .gitignore *.js"
   },
   "dependencies": {
     "p-defer": "^3.0.0"
   },
-  "bundledDependencies": [
-    "p-defer"
-  ],
   "peerDependencies": {
     "react-native": "^0.63.3"
   }

@@ -1,4 +1,4 @@
-import { createBlobReader, drainStream, readArrayAsText } from "./utils";
+import { createBlobReader, drainStream, readArrayBufferAsText } from "./utils";
 
 class Body {
     constructor(body) {
@@ -46,7 +46,7 @@ class Body {
 
     __consumed() {
         if (this.bodyUsed) {
-            return Promise.reject(new Error("Already read"));
+            return Promise.reject(new TypeError("Already read"));
         }
         this.bodyUsed = true;
     }
@@ -81,6 +81,12 @@ class Body {
     }
 
     async arrayBuffer() {
+        if (this._bodyText) {
+            const blob = await this.blob();
+
+            return createBlobReader(blob).readAsArrayBuffer();
+        }
+
         const alreadyConsumed = this.__consumed();
         if (alreadyConsumed) {
             return alreadyConsumed;
@@ -107,9 +113,6 @@ class Body {
 
             return Promise.resolve(this._bodyArrayBuffer);
         }
-
-        const blob = await this.blob();
-        return createBlobReader(blob).readAsArrayBuffer();
     }
 
     async text() {
@@ -121,7 +124,7 @@ class Body {
         if (this._bodyReadableStream) {
             const typedArray = await drainStream(this._bodyReadableStream);
 
-            return readArrayAsText(typedArray);
+            return readArrayBufferAsText(typedArray);
         }
 
         if (this._bodyBlob) {
@@ -129,7 +132,7 @@ class Body {
         }
 
         if (this._bodyArrayBuffer) {
-            return readArrayAsText(this._bodyArrayBuffer);
+            return readArrayBufferAsText(this._bodyArrayBuffer);
         }
 
         if (this._bodyFormData) {

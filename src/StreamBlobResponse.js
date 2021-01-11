@@ -1,5 +1,5 @@
 import BlobManager from "react-native/Libraries/Blob/BlobManager";
-import Response from './Response';
+import Response from "./Response";
 import { createBlobReader } from "./utils";
 
 class StreamBlobResponse {
@@ -17,18 +17,23 @@ class StreamBlobResponse {
             return this;
         }
 
-        return createBlobReader(blob).readAsArrayBuffer().then((arrayBuffer) => {
-            this._blobArrayBuffer = arrayBuffer;
-            this._arrayBufferResponse = new Response(arrayBuffer, options);
-            streamController.enqueue(new Uint8Array(arrayBuffer));
+        return createBlobReader(blob)
+            .readAsArrayBuffer()
+            .then((arrayBuffer) => {
+                this._blobArrayBuffer = arrayBuffer;
+                this._arrayBufferResponse = new Response(arrayBuffer, options);
+                streamController.enqueue(new Uint8Array(arrayBuffer));
 
-            return this;
-        });
-
+                return this;
+            });
     }
 
     get bodyUsed() {
-        return this._blobResponse.bodyUsed || this._streamResponse.bodyUsed || this._arrayBufferResponse.bodyUsed;
+        return (
+            this._blobResponse.bodyUsed ||
+            this._streamResponse.bodyUsed ||
+            this._arrayBufferResponse.bodyUsed
+        );
     }
 
     get type() {
@@ -60,8 +65,8 @@ class StreamBlobResponse {
         const stream = new ReadableStream({
             start(c) {
                 controller = c;
-            }
-        })
+            },
+        });
 
         return new StreamBlobResponse(
             this._blobData,
@@ -71,7 +76,7 @@ class StreamBlobResponse {
                 status: this._blobResponse.status,
                 statusText: this._blobResponse.statusText,
                 headers: new Headers(this._blobResponse.headers),
-                url: this._blobResponse.url
+                url: this._blobResponse.url,
             },
             this._arrayBufferResponse.slice(0)
         );

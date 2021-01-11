@@ -2,8 +2,8 @@ import { Networking } from "react-native";
 import pDefer from "p-defer";
 import Request from "./Request";
 import Response from "./Response";
-import StreamBlobResponse from './StreamBlobResponse';
-import StreamArrayBufferResponse from './StreamArrayBufferResponse';
+import StreamBlobResponse from "./StreamBlobResponse";
+import StreamArrayBufferResponse from "./StreamArrayBufferResponse";
 
 class AbortError extends Error {
     constructor() {
@@ -42,7 +42,7 @@ class Fetch {
     _streamController;
     _deferredPromise;
     _responseStatus = 0; // requests shall not time out
-    _responseUrl = '';
+    _responseUrl = "";
 
     constructor(resource, options = {}) {
         this._request = new Request(resource, options);
@@ -139,7 +139,7 @@ class Fetch {
         this._nativeResponseHeaders = headers;
         this._responseUrl = url;
 
-        if (this._nativeResponseType === 'text') {
+        if (this._nativeResponseType === "text") {
             this._response = new Response(stream, { status, headers, url });
             this._deferredPromise.resolve(this._response);
         }
@@ -215,11 +215,11 @@ class Fetch {
 
         let ResponseClass;
 
-        if (this._nativeResponseType === 'blob') {
+        if (this._nativeResponseType === "blob") {
             ResponseClass = StreamBlobResponse;
         }
 
-        if (this._nativeResponseType === 'base64') {
+        if (this._nativeResponseType === "base64") {
             ResponseClass = StreamArrayBufferResponse;
         }
 
@@ -232,7 +232,7 @@ class Fetch {
                 url: this._responseUrl,
                 headers: this._nativeResponseHeaders,
             }
-        )
+        );
 
         this._deferredPromise.resolve(this._response);
         this.__closeStream();
