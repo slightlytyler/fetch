@@ -1,5 +1,7 @@
 # window.fetch polyfill
 
+⚠️ This implementation is still WIP.
+
 This is a fork of [GitHub's fetch polyfill](https://github.com/github/fetch). Its purpose is to get [the fetch polyfill used in React Native](https://github.com/facebook/react-native/blob/master/Libraries/Network/fetch.js) closer to the `whatwg` spec without worrying about breaking older browser versions.
 
 For more context, see [the `github/fetch` issue](https://github.com/github/fetch/issues/746) and [the `react-native` issue](https://github.com/facebook/react-native/issues/27741).
