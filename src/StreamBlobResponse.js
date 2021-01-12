@@ -1,43 +1,29 @@
 import BlobManager from "react-native/Libraries/Blob/BlobManager";
 import Response from "./Response";
-import { createBlobReader } from "./utils";
+// import { createBlobReader } from "./utils";
 
 class StreamBlobResponse {
-    constructor(
-        blobData,
-        stream,
-        streamController,
-        options /* , blobArrayBuffer */
-    ) {
+    constructor(blobData, stream, streamController, options) {
         const blob = BlobManager.createFromOptions(blobData);
         this._blobData = blobData;
         this._blobResponse = new Response(blob, options);
-        this._streamResponse = new Response(stream, options);
+        // this._streamResponse = new Response(stream, options);
 
-        // if (blobArrayBuffer) {
-        //     this._blobArrayBuffer = blobArrayBuffer;
-        //     this._arrayBufferResponse = new Response(blobArrayBuffer, options);
-        //     streamController.enqueue(new Uint8Array(blobArrayBuffer));
+        // return createBlobReader(blob)
+        //     .readAsArrayBuffer()
+        //     .then((arrayBuffer) => {
+        //         this._arrayBufferResponse = new Response(arrayBuffer, options);
+        //         streamController.enqueue(new Uint8Array(arrayBuffer));
 
-        //     return this;
-        // }
-
-        return createBlobReader(blob)
-            .readAsArrayBuffer()
-            .then((arrayBuffer) => {
-                // this._blobArrayBuffer = arrayBuffer;
-                this._arrayBufferResponse = new Response(arrayBuffer, options);
-                streamController.enqueue(new Uint8Array(arrayBuffer));
-
-                return this;
-            });
+        //         return this;
+        //     });
     }
 
     get bodyUsed() {
         return (
             this._blobResponse.bodyUsed ||
-            this._streamResponse.bodyUsed ||
-            this._arrayBufferResponse.bodyUsed
+            !!this._streamResponse?.bodyUsed ||
+            !!this._arrayBufferResponse?.bodyUsed
         );
     }
 
@@ -73,18 +59,12 @@ class StreamBlobResponse {
             },
         });
 
-        return new StreamBlobResponse(
-            this._blobData,
-            stream,
-            controller,
-            {
-                status: this._blobResponse.status,
-                statusText: this._blobResponse.statusText,
-                headers: new Headers(this._blobResponse.headers),
-                url: this._blobResponse.url,
-            },
-            this._arrayBufferResponse.slice(0)
-        );
+        return new StreamBlobResponse(this._blobData, stream, controller, {
+            status: this._blobResponse.status,
+            statusText: this._blobResponse.statusText,
+            headers: new Headers(this._blobResponse.headers),
+            url: this._blobResponse.url,
+        });
     }
 
     blob() {
@@ -92,23 +72,26 @@ class StreamBlobResponse {
     }
 
     arrayBuffer() {
-        return this._arrayBufferResponse.arrayBuffer();
+        return (
+            this._arrayBufferResponse?.arrayBuffer() ??
+            this._blobResponse.arrayBuffer()
+        );
     }
 
     text() {
-        return this._arrayBufferResponse.text();
+        return this._blobResponse.text();
     }
 
     json() {
-        return this._arrayBufferResponse.json();
+        return this._blobResponse.json();
     }
 
     formData() {
-        return this._arrayBufferResponse.formData();
+        return this._blobResponse.formData();
     }
 
     get body() {
-        return this._streamResponse.body;
+        return this._streamResponse?.body;
     }
 }
 

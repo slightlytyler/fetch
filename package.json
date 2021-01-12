@@ -25,7 +25,7 @@
     "flow-bin": "^0.136.0",
     "querystring": "^0.2.0",
     "react-native-polyfill-globals": "^1.0.7",
-    "react-native-test-runner": "^1.0.8"
+    "react-native-test-runner": "^1.0.10"
   },
   "files": [
     "src",
@@ -38,8 +38,5 @@
   },
   "dependencies": {
     "p-defer": "^3.0.0"
-  },
-  "peerDependencies": {
-    "react-native": "^0.63.3"
   }
 }

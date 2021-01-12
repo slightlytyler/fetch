@@ -3,6 +3,8 @@ import { test } from "zora";
 import delay from "delay";
 import { Headers, Request, Response, fetch } from "../";
 
+const BASE_URL = "http://localhost:8082";
+
 function createBlobReader(blob) {
     const reader = new FileReader();
     const fileReaderReady = new Promise((resolve, reject) => {
@@ -60,6 +62,32 @@ async function drainStream(stream) {
     const bytes = await readNextChunk();
 
     return new Uint8Array(bytes);
+}
+
+function allSettled(promises) {
+    return new Promise((resolve, reject) => {
+        const results = [];
+
+        function resolveWhenAllSettled() {
+            if (promises.length === results.length) {
+                resolve(results);
+            }
+        }
+
+        promises.forEach((promise) => {
+            promise
+                .then((value) => {
+                    results.push({ status: "fulfilled", value });
+
+                    resolveWhenAllSettled();
+                })
+                .catch((error) => {
+                    results.push({ status: "rejected", error });
+
+                    resolveWhenAllSettled();
+                });
+        });
+    });
 }
 
 test("headers", (t) => {
@@ -563,7 +591,7 @@ test("request", (t) => {
         t.eq(await createBlobReader(blob).readAsText(), text);
     });
 
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
     t.skip(
         "consume request body as ArrayBuffer when input is text",
         async (t) => {
@@ -790,7 +818,7 @@ test("response", (t) => {
         t.eq(await createBlobReader(blob).readAsText(), text);
     });
 
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
+    // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
     t.skip(
         "consume request body as ArrayBuffer when input is text",
         async (t) => {
@@ -946,63 +974,21 @@ test("response", (t) => {
 });
 
 test("body mixin", (t) => {
-    const BASE_URL = "http://localhost:8082";
+    t.test("arrayBuffer", (t) => {
+        // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
+        t.skip("resolves arrayBuffer promise", async (t) => {
+            const url = new URL("/hello", BASE_URL);
+            const res = await fetch(url);
+            const buf = await res.arrayBuffer();
 
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
-    t.skip("resolves arrayBuffer promise", async (t) => {
-        const url = new URL("/hello", BASE_URL);
-        const res = await fetch(url);
-        const buf = await res.arrayBuffer();
+            t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+            t.eq(buf.byteLength, 2);
+        });
 
-        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
-        t.eq(buf.byteLength, 2);
-    });
-
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
-    t.skip("arrayBuffer handles binary data", async (t) => {
-        const url = new URL("/binary", BASE_URL);
-        const res = await fetch(url);
-        const buf = await res.arrayBuffer();
-
-        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
-        t.eq(buf.byteLength, 256, "buf.byteLength is correct");
-
-        const expected = Array.from({ length: 256 }, (_, i) => i);
-        const actual = Array.from(new Uint8Array(buf));
-
-        t.eq(actual, expected);
-    });
-
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
-    t.skip("arrayBuffer handles utf-8 data", async (t) => {
-        const url = new URL("/hello/utf8", BASE_URL);
-        const res = await fetch(url);
-        const buf = await res.arrayBuffer();
-
-        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
-        t.eq(buf.byteLength, 5, "buf.byteLength is correct");
-
-        const array = Array.from(new Uint8Array(buf));
-        t.eq(array, [104, 101, 108, 108, 111]);
-    });
-
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
-    t.skip("arrayBuffer handles utf-16le data", async (t) => {
-        const url = new URL("/hello/utf16le", BASE_URL);
-        const res = await fetch(url);
-        const buf = await res.arrayBuffer();
-
-        t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
-        t.eq(buf.byteLength, 10, "buf.byteLength is correct");
-
-        const array = Array.from(new Uint8Array(buf));
-        t.eq(array, [104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
-    });
-
-    t.test("native base64", (t) => {
-        t.test("arrayBuffer handles binary data", async (t) => {
+        // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
+        t.skip("arrayBuffer handles binary data", async (t) => {
             const url = new URL("/binary", BASE_URL);
-            const res = await fetch(url, { __nativeResponseType: "base64" });
+            const res = await fetch(url);
             const buf = await res.arrayBuffer();
 
             t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
@@ -1014,23 +1000,10 @@ test("body mixin", (t) => {
             t.eq(actual, expected);
         });
 
-        t.test("arrayBuffer handles binary data (native base64)", async (t) => {
-            const url = new URL("/binary", BASE_URL);
-            const res = await fetch(url, { __nativeResponseType: "base64" });
-            const buf = await res.arrayBuffer();
-
-            t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
-            t.eq(buf.byteLength, 256, "buf.byteLength is correct");
-
-            const expected = Array.from({ length: 256 }, (_, i) => i);
-            const actual = Array.from(new Uint8Array(buf));
-
-            t.eq(actual, expected);
-        });
-
-        t.test("arrayBuffer handles utf-8 data", async (t) => {
+        // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
+        t.skip("arrayBuffer handles utf-8 data", async (t) => {
             const url = new URL("/hello/utf8", BASE_URL);
-            const res = await fetch(url, { __nativeResponseType: "base64" });
+            const res = await fetch(url);
             const buf = await res.arrayBuffer();
 
             t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
@@ -1040,9 +1013,10 @@ test("body mixin", (t) => {
             t.eq(array, [104, 101, 108, 108, 111]);
         });
 
-        t.test("arrayBuffer handles utf-16le data", async (t) => {
+        // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
+        t.skip("arrayBuffer handles utf-16le data", async (t) => {
             const url = new URL("/hello/utf16le", BASE_URL);
-            const res = await fetch(url, { __nativeResponseType: "base64" });
+            const res = await fetch(url);
             const buf = await res.arrayBuffer();
 
             t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
@@ -1051,30 +1025,537 @@ test("body mixin", (t) => {
             const array = Array.from(new Uint8Array(buf));
             t.eq(array, [104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
         });
-    });
 
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
-    t.skip("rejects arrayBuffer promise after body is consumed", async (t) => {
-        const url = new URL("/hello", BASE_URL);
-        const res = await fetch(url);
+        t.test("native base64", (t) => {
+            t.test("arrayBuffer handles binary data", async (t) => {
+                const url = new URL("/binary", BASE_URL);
+                const res = await fetch(url, {
+                    __nativeResponseType: "base64",
+                });
+                const buf = await res.arrayBuffer();
 
-        t.eq(res.bodyUsed, false);
-        await res.blob();
-        t.eq(res.bodyUsed, true);
-        t.throws(
-            () => res.arrayBuffer(),
-            TypeError,
-            "Promise rejected after body consumed"
+                t.ok(
+                    buf instanceof ArrayBuffer,
+                    "buf is an ArrayBuffer instance"
+                );
+                t.eq(buf.byteLength, 256, "buf.byteLength is correct");
+
+                const expected = Array.from({ length: 256 }, (_, i) => i);
+                const actual = Array.from(new Uint8Array(buf));
+
+                t.eq(actual, expected);
+            });
+
+            t.test(
+                "arrayBuffer handles binary data (native base64)",
+                async (t) => {
+                    const url = new URL("/binary", BASE_URL);
+                    const res = await fetch(url, {
+                        __nativeResponseType: "base64",
+                    });
+                    const buf = await res.arrayBuffer();
+
+                    t.ok(
+                        buf instanceof ArrayBuffer,
+                        "buf is an ArrayBuffer instance"
+                    );
+                    t.eq(buf.byteLength, 256, "buf.byteLength is correct");
+
+                    const expected = Array.from({ length: 256 }, (_, i) => i);
+                    const actual = Array.from(new Uint8Array(buf));
+
+                    t.eq(actual, expected);
+                }
+            );
+
+            t.test("arrayBuffer handles utf-8 data", async (t) => {
+                const url = new URL("/hello/utf8", BASE_URL);
+                const res = await fetch(url, {
+                    __nativeResponseType: "base64",
+                });
+                const buf = await res.arrayBuffer();
+
+                t.ok(
+                    buf instanceof ArrayBuffer,
+                    "buf is an ArrayBuffer instance"
+                );
+                t.eq(buf.byteLength, 5, "buf.byteLength is correct");
+
+                const array = Array.from(new Uint8Array(buf));
+                t.eq(array, [104, 101, 108, 108, 111]);
+            });
+
+            t.test("arrayBuffer handles utf-16le data", async (t) => {
+                const url = new URL("/hello/utf16le", BASE_URL);
+                const res = await fetch(url, {
+                    __nativeResponseType: "base64",
+                });
+                const buf = await res.arrayBuffer();
+
+                t.ok(
+                    buf instanceof ArrayBuffer,
+                    "buf is an ArrayBuffer instance"
+                );
+                t.eq(buf.byteLength, 10, "buf.byteLength is correct");
+
+                const array = Array.from(new Uint8Array(buf));
+                t.eq(array, [104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
+            });
+        });
+
+        // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
+        t.skip(
+            "rejects arrayBuffer promise after body is consumed",
+            async (t) => {
+                const url = new URL("/hello", BASE_URL);
+                const res = await fetch(url);
+
+                t.eq(res.bodyUsed, false);
+                await res.blob();
+                t.eq(res.bodyUsed, true);
+                t.throws(
+                    () => res.arrayBuffer(),
+                    TypeError,
+                    "Promise rejected after body consumed"
+                );
+            }
         );
     });
 
-    // Test fails while React Native does not implement FileReader.readAsArrayBuffer
-    t.skip("resolves blob promise", async (t) => {
+    t.test("blob", (t) => {
+        t.test("resolves blob promise", async (t) => {
+            const url = new URL("/hello", BASE_URL);
+            const res = await fetch(url);
+            const blob = await res.blob();
+
+            t.ok(blob instanceof Blob, "blob is a Blob instance");
+            t.eq(blob.size, 2);
+        });
+
+        t.test("blob handles binary data", async (t) => {
+            const url = new URL("/binary", BASE_URL);
+            const res = await fetch(url);
+            const blob = await res.blob();
+
+            t.ok(blob instanceof Blob, "blob is a Blob instance");
+            t.eq(blob.size, 256, "blob.size is correct");
+        });
+
+        // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
+        t.skip("blob handles utf-8 data", async (t) => {
+            const url = new URL("/hello/utf8", BASE_URL);
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const array = Array.from(
+                await createBlobReader(blob).readAsArrayBuffer()
+            );
+
+            t.eq(array.length, 5, "blob.size is correct");
+            t.eq(array, [104, 101, 108, 108, 111]);
+        });
+
+        // TODO: Test fails while React Native does not implement FileReader.readAsArrayBuffer
+        t.skip("blob handles utf-16le data", async (t) => {
+            const url = new URL("/hello/utf16le", BASE_URL);
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const array = Array.from(
+                await createBlobReader(blob).readAsArrayBuffer()
+            );
+
+            t.eq(array.length, 10, "blob.size is correct");
+            t.eq(array, [104, 0, 101, 0, 108, 0, 108, 0, 111, 0]);
+        });
+
+        t.test("rejects blob promise after body is consumed", async (t) => {
+            const url = new URL("/hello", BASE_URL);
+            const res = await fetch(url);
+
+            t.ok(res.blob, "Body does not implement blob");
+            t.notOk(res.bodyUsed);
+            await res.text();
+            t.ok(res.bodyUsed);
+
+            try {
+                await res.blob();
+                t.fail("Promise should have been rejected after body consumed");
+            } catch (error) {
+                t.ok(
+                    error instanceof TypeError,
+                    "Promise rejected after body consumed"
+                );
+            }
+        });
+    });
+
+    t.test("formData", (t) => {
+        t.test("POST sets Content-Type header for FormData", async (t) => {
+            const url = new URL("/request", BASE_URL);
+            const formData = new FormData();
+            formData.append("key", "value");
+            const res = await fetch(url, {
+                method: "POST",
+                body: formData,
+            });
+            const json = await res.json();
+
+            t.eq(json.method, "POST");
+            t.ok(/^multipart\/form-data;/.test(json.headers["content-type"]));
+        });
+
+        t.test("formData rejects after body was consumed", async (t) => {
+            const url = new URL("/json", BASE_URL);
+            const res = await fetch(url);
+
+            t.ok(res.formData, "Body does not implement formData");
+            t.notOk(res.bodyUsed);
+            await res.formData();
+            t.ok(res.bodyUsed);
+
+            try {
+                await res.formData();
+                t.fail("Promise should have been rejected after body consumed");
+            } catch (error) {
+                t.ok(
+                    error instanceof TypeError,
+                    "Promise rejected after body consumed"
+                );
+            }
+        });
+
+        t.test("parses form-encoded response", async (t) => {
+            const url = new URL("/form", BASE_URL);
+            const res = await fetch(url);
+            const formData = await res.formData();
+
+            t.ok(formData instanceof FormData, "Parsed a FormData object");
+        });
+    });
+
+    t.test("json", (t) => {
+        t.test("parses json response", async (t) => {
+            const url = new URL("/json", BASE_URL);
+            const res = await fetch(url);
+            const json = await res.json();
+
+            t.eq(json.name, "Hubot");
+            t.eq(json.login, "hubot");
+        });
+
+        t.test("rejects json promise after body is consumed", async (t) => {
+            const url = new URL("/json", BASE_URL);
+            const res = await fetch(url);
+
+            t.ok(res.json, "Body does not implement json");
+            t.eq(res.bodyUsed, false);
+            await res.text();
+            t.eq(res.bodyUsed, true);
+
+            try {
+                await res.json();
+                t.fail("Promise should have been rejected after body consumed");
+            } catch (error) {
+                t.ok(
+                    error instanceof TypeError,
+                    "Promise rejected after body consumed"
+                );
+            }
+        });
+
+        t.test("handles json parse error", async (t) => {
+            const url = new URL("/json-error", BASE_URL);
+            const res = await fetch(url);
+
+            try {
+                await res.json();
+                t.fail("Promise should have been rejected with invalid JSON");
+            } catch (error) {
+                t.ok(error instanceof SyntaxError);
+            }
+        });
+    });
+
+    t.test("text", () => {
+        t.test("handles 204 No Content response", async (t) => {
+            const url = new URL("/empty", BASE_URL);
+            const res = await fetch(url);
+            const text = await res.text();
+
+            t.eq(res.status, 204);
+            t.eq(text, "");
+        });
+
+        t.test("resolves text promise", async (t) => {
+            const url = new URL("/hello", BASE_URL);
+            const res = await fetch(url);
+            const text = await res.text();
+
+            t.eq(text, "hi");
+        });
+
+        t.test("rejects text promise after body is consumed", async (t) => {
+            const url = new URL("/hello", BASE_URL);
+            const res = await fetch(url);
+
+            t.ok(res.text, "Body does not implement text");
+            t.eq(res.bodyUsed, false);
+            await res.text();
+            t.eq(res.bodyUsed, true);
+
+            try {
+                await res.text();
+                t.fail("Promise should have been rejected after body consumed");
+            } catch (error) {
+                t.ok(
+                    error instanceof TypeError,
+                    "Promise rejected after body consumed"
+                );
+            }
+        });
+    });
+});
+
+test("fetch method", (t) => {
+    t.test("resolves promise on 500 error", async (t) => {
+        const url = new URL("/boom", BASE_URL);
+        const res = await fetch(url);
+        const text = await res.text();
+
+        t.eq(res.status, 500);
+        t.notOk(res.ok);
+        t.eq(text, "boom");
+    });
+
+    t.test("rejects promise for network error", async (t) => {
+        const url = new URL("/error", BASE_URL);
+
+        try {
+            const res = await fetch(url);
+            t.fail(`HTTP status ${res.status} was treated as success`);
+        } catch (error) {
+            t.ok(error instanceof TypeError, "Rejected with TypeError");
+        }
+    });
+
+    t.test("rejects when Request constructor throws", async (t) => {
+        const url = new URL("/request", BASE_URL);
+
+        try {
+            await fetch(url, { method: "GET", body: "invalid" });
+            t.fail("GET request accepted a body");
+        } catch (error) {
+            t.ok(error instanceof TypeError, "Rejected with TypeError");
+        }
+    });
+
+    t.test("sends headers", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const res = await fetch(url, {
+            headers: {
+                Accept: "application/json",
+                "X-Test": "42",
+            },
+        });
+        const json = await res.json();
+
+        t.eq(json.headers.accept, "application/json");
+        t.eq(json.headers["x-test"], "42");
+    });
+
+    t.test("with Request as argument", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const req = new Request(url, {
+            headers: {
+                Accept: "application/json",
+                "X-Test": "42",
+            },
+        });
+        const res = await fetch(req);
+        const json = await res.json();
+
+        t.eq(json.headers.accept, "application/json");
+        t.eq(json.headers["x-test"], "42");
+    });
+
+    t.test("reusing same Request multiple times", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const request = new Request(url, {
+            headers: {
+                Accept: "application/json",
+                "X-Test": "42",
+            },
+        });
+        const responses = await Promise.all([
+            fetch(request),
+            fetch(request),
+            fetch(request),
+        ]);
+        const jsons = await Promise.all(responses.map((res) => res.json()));
+
+        jsons.forEach((json) => {
+            t.eq(json.headers.accept, "application/json");
+            t.eq(json.headers["x-test"], "42");
+        });
+    });
+
+    t.test("send ArrayBufferView body", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const res = await fetch(url, {
+            method: "POST",
+            body: createTypedArrayFromText("name=Hubot"),
+        });
+        const json = await res.json();
+
+        t.eq(json.method, "POST");
+        t.eq(json.data, "name=Hubot");
+    });
+
+    t.test("send ArrayBuffer body", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const res = await fetch(url, {
+            method: "POST",
+            body: createTypedArrayFromText("name=Hubot").buffer,
+        });
+        const json = await res.json();
+
+        t.eq(json.method, "POST");
+        t.eq(json.data, "name=Hubot");
+    });
+
+    t.test("send DataView body", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const res = await fetch(url, {
+            method: "POST",
+            body: new DataView(createTypedArrayFromText("name=Hubot").buffer),
+        });
+        const json = await res.json();
+
+        t.eq(json.method, "POST");
+        t.eq(json.data, "name=Hubot");
+    });
+
+    t.test("send URLSearchParams body", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const search = new URLSearchParams({
+            c: "3",
+        });
+        search.append("a", "1");
+        search.append("b", "2");
+        const res = await fetch(url, {
+            method: "POST",
+            body: search,
+        });
+        const json = await res.json();
+
+        t.eq(json.method, "POST");
+        t.eq(json.data, "c=3&a=1&b=2");
+    });
+
+    t.test("initially aborted signal", async (t) => {
+        const controller = new AbortController();
+        controller.abort();
+
+        const url = new URL("/request", BASE_URL);
+        try {
+            await fetch(url, { signal: controller.signal });
+            t.fail("Fetch did not throw when signal is aborted");
+        } catch (error) {
+            t.eq(error.name, "AbortError");
+        }
+    });
+
+    t.test("initially aborted signal within Request", async (t) => {
+        const controller = new AbortController();
+        controller.abort();
+
+        const url = new URL("/request", BASE_URL);
+        const request = new Request(url, { signal: controller.signal });
+
+        try {
+            await fetch(request);
+            t.fail("Fetch did not throw when signal is aborted");
+        } catch (error) {
+            t.eq(error.name, "AbortError");
+        }
+    });
+
+    t.test("abort signal mid-request", async (t) => {
+        const controller = new AbortController();
+        const url = new URL(`/slow?_=${new Date().getTime()}`, BASE_URL);
+        const result = fetch(url, { signal: controller.signal });
+        controller.abort();
+
+        try {
+            await result;
+            t.fail("Fetch did not throw when signal is aborted");
+        } catch (error) {
+            t.eq(error.name, "AbortError");
+        }
+    });
+
+    t.test("abort signal mid-request within Request", async (t) => {
+        const controller = new AbortController();
+        const url = new URL("/slow", BASE_URL);
+        const request = new Request(url, { signal: controller.signal });
+        const result = fetch(request);
+        controller.abort();
+
+        try {
+            await result;
+            t.fail("Fetch did not throw when signal is aborted");
+        } catch (error) {
+            t.eq(error.name, "AbortError");
+        }
+    });
+
+    t.test("abort multiple requests with same signal", async (t) => {
+        const controller = new AbortController();
+        const url = new URL("/slow", BASE_URL);
+        const settled = allSettled([
+            fetch(url, { signal: controller.signal }),
+            fetch(url, { signal: controller.signal }),
+            fetch(url, { signal: controller.signal }),
+        ]);
+        controller.abort();
+
+        const results = await settled;
+
+        results.forEach(({ status, error }) => {
+            t.eq(status, "rejected", "Fetch threw when signal was aborted");
+            t.eq(error.name, "AbortError");
+        });
+    });
+
+    t.test("populates response body", async (t) => {
         const url = new URL("/hello", BASE_URL);
         const res = await fetch(url);
-        const blob = await res.blob();
+        const text = await res.text();
 
-        t.ok(blob instanceof Blob, "blob is a Blob instance");
-        t.eq(blob.size, 2);
+        t.eq(res.status, 200);
+        t.ok(res.ok);
+        t.eq(text, "hi");
+    });
+
+    t.test("parses response headers", async (t) => {
+        const url = new URL("/headers", BASE_URL);
+        const res = await fetch(url);
+
+        t.eq(res.headers.get("Date"), "Mon, 13 Oct 2014 21:02:27 GMT");
+        t.eq(res.headers.get("Content-Type"), "text/html; charset=utf-8");
+    });
+
+    t.test("supports HTTP GET", async (t) => {
+        const url = new URL("/request", BASE_URL);
+        const res = await fetch(url, { method: "GET" });
+        const json = await res.json();
+
+        t.eq(json.method, "GET");
+        t.eq(json.data, "");
+    });
+
+    t.test("HEAD with body throws TypeError", (t) => {
+        t.throws(() => {
+            new Request("", { method: "HEAD", body: "invalid" });
+        }, TypeError);
     });
 });

@@ -22,6 +22,7 @@
         "FileReader": true,
         "TextDecoder": true,
         "TextEncoder": true,
-        "Buffer": true
+        "Buffer": true,
+        "AbortController": true
     }
 }

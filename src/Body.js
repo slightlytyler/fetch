@@ -23,13 +23,14 @@ class Body {
         }
 
         if (body instanceof URLSearchParams) {
-            this._bodyText = body.toString();
+            // URLSearchParams is not handled natively so we reassign bodyInit for fetch to send it as text
+            this._bodyText = this._bodyInit = body.toString();
             this._mimeType = "application/x-www-form-urlencoded;charset=UTF-8";
             return this;
         }
 
         if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-            this._bodyArrayBuffer = body.slice(0);
+            this._bodyArrayBuffer = body.slice?.(0) ?? body.buffer;
             this._mimeType = "application/octet-stream";
             return this;
         }
@@ -61,15 +62,21 @@ class Body {
             return this._bodyBlob;
         }
 
+        // Currently not supported by React Native. It will throw.
+        // Blobs cannot be constructed from ArrayBuffers or ArrayBufferViews.
         if (this._bodyReadableStream) {
             const typedArray = await drainStream(this._bodyReadableStream);
 
-            // Currently not supported by React Native. Should we throw?
             return new Blob([typedArray]);
         }
 
+        // Currently not supported by React Native. It will throw.
+        // Blobs cannot be constructed from ArrayBuffers or ArrayBufferViews.
         if (this._bodyArrayBuffer) {
-            // Currently not supported by React Native. Should we throw?
+            if (ArrayBuffer.isView(this._bodyArrayBuffer)) {
+                return new Blob([this._bodyArrayBuffer.buffer]);
+            }
+
             return new Blob([this._bodyArrayBuffer]);
         }
 

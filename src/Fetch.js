@@ -46,15 +46,17 @@ class Fetch {
 
     constructor(resource, options = {}) {
         this._request = new Request(resource, options);
-        this._abortFn = this.__abort.bind(this);
-        this._deferredPromise = pDefer();
-
-        for (const [name, value] of this._request.headers.entries()) {
-            this._nativeRequestHeaders[name] = value;
-        }
 
         if (this._request.signal?.aborted) {
             throw new AbortError();
+        }
+
+        this._abortFn = this.__abort.bind(this);
+        this._deferredPromise = pDefer();
+        this._request.signal?.addEventListener("abort", this._abortFn);
+
+        for (const [name, value] of this._request.headers.entries()) {
+            this._nativeRequestHeaders[name] = value;
         }
 
         this.__setNativeResponseType(options);
@@ -98,14 +100,13 @@ class Fetch {
 
     __abort() {
         Networking.abortRequest(this._requestId);
-        this.__clearNetworkSubscriptions();
         this._streamController?.error(new AbortError());
         this._deferredPromise.reject(new AbortError());
+        this.__clearNetworkSubscriptions();
     }
 
     __doFetch() {
         this.__subscribeToNetworkEvents();
-        this._request.signal?.addEventListener("abort", this._abortFn);
 
         Networking.sendRequest(
             this._request.method,
@@ -208,18 +209,22 @@ class Fetch {
         this._request.signal?.removeEventListener("abort", this._abortFn);
 
         if (didTimeOut) {
+            this.__closeStream();
+
             return this._deferredPromise.reject(
-                new Error("Network request timed out")
+                new TypeError("Network request timed out")
             );
         }
 
         if (errorMessage) {
+            this.__closeStream();
+
             return this._deferredPromise.reject(
-                new Error(`Network request failed: ${errorMessage}`)
+                new TypeError(`Network request failed: ${errorMessage}`)
             );
         }
 
-        if (!this._nativeResponse) {
+        if (this._nativeResponseType === "text") {
             this.__closeStream();
             return;
         }

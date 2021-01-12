@@ -86,7 +86,7 @@ const routes = {
                 "Cache-Control": "no-cache, must-revalidate",
             });
             res.end();
-        }, 100);
+        }, 200);
     },
     "/error": function (res) {
         res.destroy();
