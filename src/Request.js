@@ -18,6 +18,7 @@ class Request {
 
         this._body = this._body ?? new Body(options.body);
         this.method = options.method ?? this.method;
+        this.method = this.method.toUpperCase();
 
         if (this._body._bodyInit && ["GET", "HEAD"].includes(this.method)) {
             throw new TypeError("Body not allowed for GET or HEAD requests");
@@ -34,6 +35,8 @@ class Request {
         if (!this.headers.has("content-type") && this._body._mimeType) {
             this.headers.set("content-type", this._body._mimeType);
         }
+
+        this.__handleCacheOption(options.cache);
     }
 
     __handleRequestInput(request, options) {
@@ -47,6 +50,34 @@ class Request {
             this._body = new Body(request._body._bodyInit);
             request._body.bodyUsed = true;
         }
+    }
+
+    __handleCacheOption(cache) {
+        if (!["GET", "HEAD"].includes(this.method)) {
+            return;
+        }
+
+        if (!["no-store", "no-cache"].includes(cache)) {
+            return;
+        }
+
+        const currentTime = Date.now();
+        // Search for a '_' parameter in the query string
+        const querySearchRegExp = /([?&])_=[^&]*/;
+
+        if (querySearchRegExp.test(this.url)) {
+            this.url = this.url.replace(
+                querySearchRegExp,
+                `$1_=${currentTime}`
+            );
+
+            return;
+        }
+
+        const hasQueryRegExp = /\?/;
+        const querySeparator = hasQueryRegExp.test(this.url) ? "&" : "?";
+
+        this.url += `${querySeparator}_=${currentTime}`;
     }
 
     get bodyUsed() {

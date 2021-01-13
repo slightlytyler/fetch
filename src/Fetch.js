@@ -65,15 +65,15 @@ class Fetch {
         return this._deferredPromise.promise;
     }
 
-    __setNativeResponseType(options) {
-        if (options.textStreaming) {
+    __setNativeResponseType({ reactNative }) {
+        if (reactNative?.textStreaming) {
             this._nativeResponseType = "text";
 
             return;
         }
 
         this._nativeResponseType =
-            options.__nativeResponseType ?? this._nativeResponseType;
+            reactNative?.__nativeResponseType ?? this._nativeResponseType;
     }
 
     __subscribeToNetworkEvents() {

@@ -1,9 +1,13 @@
 import "react-native-polyfill-globals/auto";
+import { Platform } from "react-native";
 import { test } from "zora";
 import delay from "delay";
 import { Headers, Request, Response, fetch } from "../";
 
-const BASE_URL = "http://localhost:8082";
+const BASE_URL = Platform.select({
+    android: "http://10.0.2.2:8082",
+    ios: "http://localhost:8082",
+});
 
 function createBlobReader(blob) {
     const reader = new FileReader();
@@ -78,14 +82,11 @@ function allSettled(promises) {
             promise
                 .then((value) => {
                     results.push({ status: "fulfilled", value });
-
-                    resolveWhenAllSettled();
                 })
                 .catch((error) => {
                     results.push({ status: "rejected", error });
-
-                    resolveWhenAllSettled();
-                });
+                })
+                .finally(resolveWhenAllSettled);
         });
     });
 }
@@ -576,6 +577,18 @@ test("request", (t) => {
         t.eq(req.credentials, "omit");
     });
 
+    t.test("GET with body throws TypeError", (t) => {
+        t.throws(() => {
+            new Request("", { method: "GET", body: "invalid" });
+        }, TypeError);
+    });
+
+    t.test("HEAD with body throws TypeError", (t) => {
+        t.throws(() => {
+            new Request("", { method: "HEAD", body: "invalid" });
+        }, TypeError);
+    });
+
     t.test("consume request body as text when input is text", async (t) => {
         const text = "Hello world!";
         const req = new Request("", { method: "POST", body: text });
@@ -668,6 +681,106 @@ test("request", (t) => {
             t.eq(text, "Hello world!");
         }
     );
+
+    t.test("cache-busting query parameter", (t) => {
+        const originalDateNow = Date.now;
+        global.Date.now = () => 12345;
+
+        t.test("should not append current time for POST", (t) => {
+            const req = new Request("https://reactnative.dev/", {
+                cache: "no-cache",
+                method: "POST",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.notOk(searchParams.has("_"));
+        });
+
+        t.test("should not append current time for PUT", (t) => {
+            const req = new Request("https://reactnative.dev/", {
+                cache: "no-cache",
+                method: "PUT",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.notOk(searchParams.has("_"));
+        });
+
+        t.test("should not append current time for PATCH", (t) => {
+            const req = new Request("https://reactnative.dev/", {
+                cache: "no-cache",
+                method: "PATCH",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.notOk(searchParams.has("_"));
+        });
+
+        t.test("should append current time for GET", (t) => {
+            const req = new Request("https://reactnative.dev/", {
+                cache: "no-cache",
+                method: "GET",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.ok(searchParams.has("_"));
+            t.eq(searchParams.get("_"), `${Date.now()}`);
+        });
+
+        t.test("should append current time for HEAD", (t) => {
+            const req = new Request("https://reactnative.dev/", {
+                cache: "no-cache",
+                method: "HEAD",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.ok(searchParams.has("_"));
+            t.eq(searchParams.get("_"), "12345");
+        });
+
+        t.test("should replace existing value", (t) => {
+            const req = new Request("https://reactnative.dev/?_=67890", {
+                cache: "no-cache",
+                method: "GET",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.ok(searchParams.has("_"));
+            t.eq(searchParams.get("_"), "12345");
+        });
+
+        t.test("should append current time with no-store option too", (t) => {
+            const req = new Request("https://reactnative.dev/", {
+                cache: "no-store",
+                method: "GET",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.ok(searchParams.has("_"));
+            t.eq(searchParams.get("_"), "12345");
+        });
+
+        t.test("should replace existing value with no-store option", (t) => {
+            const req = new Request("https://reactnative.dev/?_=67890", {
+                cache: "no-store",
+                method: "GET",
+            });
+
+            const searchParams = new URL(req.url).searchParams;
+
+            t.ok(searchParams.has("_"));
+            t.eq(searchParams.get("_"), "12345");
+        });
+
+        global.Date.now = originalDateNow;
+    });
 });
 
 test("response", (t) => {
@@ -1030,7 +1143,9 @@ test("body mixin", (t) => {
             t.test("arrayBuffer handles binary data", async (t) => {
                 const url = new URL("/binary", BASE_URL);
                 const res = await fetch(url, {
-                    __nativeResponseType: "base64",
+                    reactNative: {
+                        __nativeResponseType: "base64",
+                    },
                 });
                 const buf = await res.arrayBuffer();
 
@@ -1051,7 +1166,9 @@ test("body mixin", (t) => {
                 async (t) => {
                     const url = new URL("/binary", BASE_URL);
                     const res = await fetch(url, {
-                        __nativeResponseType: "base64",
+                        reactNative: {
+                            __nativeResponseType: "base64",
+                        },
                     });
                     const buf = await res.arrayBuffer();
 
@@ -1071,7 +1188,9 @@ test("body mixin", (t) => {
             t.test("arrayBuffer handles utf-8 data", async (t) => {
                 const url = new URL("/hello/utf8", BASE_URL);
                 const res = await fetch(url, {
-                    __nativeResponseType: "base64",
+                    reactNative: {
+                        __nativeResponseType: "base64",
+                    },
                 });
                 const buf = await res.arrayBuffer();
 
@@ -1088,7 +1207,9 @@ test("body mixin", (t) => {
             t.test("arrayBuffer handles utf-16le data", async (t) => {
                 const url = new URL("/hello/utf16le", BASE_URL);
                 const res = await fetch(url, {
-                    __nativeResponseType: "base64",
+                    reactNative: {
+                        __nativeResponseType: "base64",
+                    },
                 });
                 const buf = await res.arrayBuffer();
 
@@ -1451,81 +1572,6 @@ test("fetch method", (t) => {
         t.eq(json.data, "c=3&a=1&b=2");
     });
 
-    t.test("initially aborted signal", async (t) => {
-        const controller = new AbortController();
-        controller.abort();
-
-        const url = new URL("/request", BASE_URL);
-        try {
-            await fetch(url, { signal: controller.signal });
-            t.fail("Fetch did not throw when signal is aborted");
-        } catch (error) {
-            t.eq(error.name, "AbortError");
-        }
-    });
-
-    t.test("initially aborted signal within Request", async (t) => {
-        const controller = new AbortController();
-        controller.abort();
-
-        const url = new URL("/request", BASE_URL);
-        const request = new Request(url, { signal: controller.signal });
-
-        try {
-            await fetch(request);
-            t.fail("Fetch did not throw when signal is aborted");
-        } catch (error) {
-            t.eq(error.name, "AbortError");
-        }
-    });
-
-    t.test("abort signal mid-request", async (t) => {
-        const controller = new AbortController();
-        const url = new URL(`/slow?_=${new Date().getTime()}`, BASE_URL);
-        const result = fetch(url, { signal: controller.signal });
-        controller.abort();
-
-        try {
-            await result;
-            t.fail("Fetch did not throw when signal is aborted");
-        } catch (error) {
-            t.eq(error.name, "AbortError");
-        }
-    });
-
-    t.test("abort signal mid-request within Request", async (t) => {
-        const controller = new AbortController();
-        const url = new URL("/slow", BASE_URL);
-        const request = new Request(url, { signal: controller.signal });
-        const result = fetch(request);
-        controller.abort();
-
-        try {
-            await result;
-            t.fail("Fetch did not throw when signal is aborted");
-        } catch (error) {
-            t.eq(error.name, "AbortError");
-        }
-    });
-
-    t.test("abort multiple requests with same signal", async (t) => {
-        const controller = new AbortController();
-        const url = new URL("/slow", BASE_URL);
-        const settled = allSettled([
-            fetch(url, { signal: controller.signal }),
-            fetch(url, { signal: controller.signal }),
-            fetch(url, { signal: controller.signal }),
-        ]);
-        controller.abort();
-
-        const results = await settled;
-
-        results.forEach(({ status, error }) => {
-            t.eq(status, "rejected", "Fetch threw when signal was aborted");
-            t.eq(error.name, "AbortError");
-        });
-    });
-
     t.test("populates response body", async (t) => {
         const url = new URL("/hello", BASE_URL);
         const res = await fetch(url);
@@ -1544,18 +1590,264 @@ test("fetch method", (t) => {
         t.eq(res.headers.get("Content-Type"), "text/html; charset=utf-8");
     });
 
-    t.test("supports HTTP GET", async (t) => {
-        const url = new URL("/request", BASE_URL);
-        const res = await fetch(url, { method: "GET" });
-        const json = await res.json();
+    t.test("text streaming", async (t) => {
+        const url = new URL("/stream", BASE_URL);
+        const res = await fetch(url, { reactNative: { textStreaming: true } });
+        const stream = await res.body;
+        const text = new TextDecoder().decode(await drainStream(stream));
 
-        t.eq(json.method, "GET");
-        t.eq(json.data, "");
+        t.ok(
+            stream instanceof ReadableStream,
+            "Response implements streaming body"
+        );
+        t.eq(text, "Hello world!");
     });
 
-    t.test("HEAD with body throws TypeError", (t) => {
-        t.throws(() => {
-            new Request("", { method: "HEAD", body: "invalid" });
-        }, TypeError);
+    t.test("aborting", (t) => {
+        t.test("initially aborted signal", async (t) => {
+            const controller = new AbortController();
+            controller.abort();
+
+            const url = new URL("/request", BASE_URL);
+            try {
+                await fetch(url, { signal: controller.signal });
+                t.fail("Fetch did not throw when signal is aborted");
+            } catch (error) {
+                t.eq(error.name, "AbortError");
+            }
+        });
+
+        t.test("initially aborted signal within Request", async (t) => {
+            const controller = new AbortController();
+            controller.abort();
+
+            const url = new URL("/request", BASE_URL);
+            const request = new Request(url, { signal: controller.signal });
+
+            try {
+                await fetch(request);
+                t.fail("Fetch did not throw when signal is aborted");
+            } catch (error) {
+                t.eq(error.name, "AbortError");
+            }
+        });
+
+        t.test("abort signal mid-request", async (t) => {
+            const controller = new AbortController();
+            const url = new URL(`/slow?_=${new Date().getTime()}`, BASE_URL);
+            const result = fetch(url, { signal: controller.signal });
+            controller.abort();
+
+            try {
+                await result;
+                t.fail("Fetch did not throw when signal is aborted");
+            } catch (error) {
+                t.eq(error.name, "AbortError");
+            }
+        });
+
+        t.test("abort signal mid-request within Request", async (t) => {
+            const controller = new AbortController();
+            const url = new URL("/slow", BASE_URL);
+            const request = new Request(url, { signal: controller.signal });
+            const result = fetch(request);
+            controller.abort();
+
+            try {
+                await result;
+                t.fail("Fetch did not throw when signal is aborted");
+            } catch (error) {
+                t.eq(error.name, "AbortError");
+            }
+        });
+
+        t.test("abort multiple requests with same signal", async (t) => {
+            const controller = new AbortController();
+            const url = new URL("/slow", BASE_URL);
+            const settled = allSettled([
+                fetch(url, { signal: controller.signal }),
+                fetch(url, { signal: controller.signal }),
+                fetch(url, { signal: controller.signal }),
+            ]);
+            controller.abort();
+
+            const results = await settled;
+
+            results.forEach(({ status, error }) => {
+                t.eq(status, "rejected", "Fetch threw when signal was aborted");
+                t.eq(error.name, "AbortError");
+            });
+        });
+    });
+
+    t.test("HTTP methods", (t) => {
+        t.test("supports HTTP GET", async (t) => {
+            const url = new URL("/request", BASE_URL);
+            const res = await fetch(url, { method: "GET" });
+            const json = await res.json();
+
+            t.eq(json.method, "GET");
+            t.eq(json.data, "");
+        });
+
+        t.test("supports HTTP POST", async (t) => {
+            const url = new URL("/request", BASE_URL);
+            const res = await fetch(url, {
+                method: "POST",
+                body: "name=Hubot",
+            });
+            const json = await res.json();
+
+            t.eq(json.method, "POST");
+            t.eq(json.data, "name=Hubot");
+        });
+
+        t.test("supports HTTP PUT", async (t) => {
+            const url = new URL("/request", BASE_URL);
+            const res = await fetch(url, { method: "PUT", body: "name=Hubot" });
+            const json = await res.json();
+
+            t.eq(json.method, "PUT");
+            t.eq(json.data, "name=Hubot");
+        });
+
+        t.test("supports HTTP PATCH", async (t) => {
+            const url = new URL("/request", BASE_URL);
+            const res = await fetch(url, {
+                method: "PATCH",
+                body: "name=Hubot",
+            });
+            const json = await res.json();
+
+            t.eq(json.method, "PATCH");
+            t.eq(json.data, "name=Hubot");
+        });
+
+        t.test("supports HTTP DELETE", async (t) => {
+            const url = new URL("/request", BASE_URL);
+            const res = await fetch(url, { method: "DELETE" });
+            const json = await res.json();
+
+            t.eq(json.method, "DELETE");
+            t.eq(json.data, "");
+        });
+    });
+
+    t.test("Atomic HTTP redirect handling", (t) => {
+        t.test("handles 301 redirect response", async (t) => {
+            const url = new URL("/redirect/301", BASE_URL);
+            const res = await fetch(url);
+            const text = await res.text();
+
+            t.eq(res.status, 200);
+            t.ok(res.ok);
+            t.ok(/\/hello/.test(res.url));
+            t.ok(text, "hi");
+        });
+
+        t.test("handles 302 redirect response", async (t) => {
+            const url = new URL("/redirect/302", BASE_URL);
+            const res = await fetch(url);
+            const text = await res.text();
+
+            t.eq(res.status, 200);
+            t.ok(res.ok);
+            t.ok(/\/hello/.test(res.url));
+            t.ok(text, "hi");
+        });
+
+        t.test("handles 303 redirect response", async (t) => {
+            const url = new URL("/redirect/303", BASE_URL);
+            const res = await fetch(url);
+            const text = await res.text();
+
+            t.eq(res.status, 200);
+            t.ok(res.ok);
+            t.ok(/\/hello/.test(res.url));
+            t.ok(text, "hi");
+        });
+
+        t.test("handles 307 redirect response", async (t) => {
+            const url = new URL("/redirect/307", BASE_URL);
+            const res = await fetch(url);
+            const text = await res.text();
+
+            t.eq(res.status, 200);
+            t.ok(res.ok);
+            t.ok(/\/hello/.test(res.url));
+            t.ok(text, "hi");
+        });
+
+        t.test("handles 308 redirect response", async (t) => {
+            const url = new URL("/redirect/308", BASE_URL);
+            const res = await fetch(url);
+            const text = await res.text();
+
+            t.eq(res.status, 200);
+            t.ok(res.ok);
+            t.ok(/\/hello/.test(res.url));
+            t.ok(text, "hi");
+        });
+    });
+
+    t.test("credentials mode", (t) => {
+        t.test("does not accept cookies with omit credentials", async (t) => {
+            const url1 = new URL("/cookie?name=foo1&value=bar1", BASE_URL);
+            const url2 = new URL("/cookie?name=foo1", BASE_URL);
+
+            // Respond with Set-Cookie header: foo1=bar1
+            const res1 = await fetch(url1, { credentials: "same-origin" });
+            // Cookie IS NOT sent to the server
+            const res2 = await fetch(url2, { credentials: "omit" });
+            // Cookie IS sent to the server and its value returned in body
+            const res3 = await fetch(url2, { credentials: "same-origin" });
+
+            t.eq(await res1.text(), "");
+            t.eq(await res2.text(), "");
+            t.eq(await res3.text(), "bar1");
+        });
+
+        t.test("does not send cookies with omit credentials", async (t) => {
+            const url1 = new URL("/cookie?name=foo2&value=bar2", BASE_URL);
+            const url2 = new URL("/cookie?name=foo2", BASE_URL);
+
+            // Respond with Set-Cookie header: foo2=bar2
+            const res1 = await fetch(url1, { credentials: "same-origin" });
+            // Cookie IS NOT sent to the server
+            const res2 = await fetch(url2, { credentials: "omit" });
+
+            t.eq(await res1.text(), "");
+            t.eq(await res2.text(), "");
+        });
+
+        t.test("send cookies with same-origin credentials", async (t) => {
+            const url1 = new URL("/cookie?name=foo3&value=bar3", BASE_URL);
+            const url2 = new URL("/cookie?name=foo3", BASE_URL);
+
+            // Respond with Set-Cookie header: foo3=bar3
+            const res1 = await fetch(url1, { credentials: "same-origin" });
+            // Cookie IS sent to the server and its value returned in body
+            const res2 = await fetch(url2, { credentials: "same-origin" });
+            const res3 = await fetch(url2, { credentials: "same-origin" });
+
+            t.eq(await res1.text(), "");
+            t.eq(await res2.text(), "bar3");
+            t.eq(await res3.text(), "bar3");
+        });
+
+        t.test("send cookies with include credentials", async (t) => {
+            const url1 = new URL("/cookie?name=foo4&value=bar4", BASE_URL);
+            const url2 = new URL("/cookie?name=foo4", BASE_URL);
+
+            // Respond with Set-Cookie header: foo4=bar4
+            const res1 = await fetch(url1, { credentials: "include" });
+            // Cookie IS sent to the server and its value returned in body
+            const res2 = await fetch(url2, { credentials: "include" });
+            const res3 = await fetch(url2, { credentials: "include" });
+
+            t.eq(await res1.text(), "");
+            t.eq(await res2.text(), "bar4");
+            t.eq(await res3.text(), "bar4");
+        });
     });
 });

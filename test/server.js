@@ -1,5 +1,6 @@
-const url = require("url");
 const querystring = require("querystring");
+const delay = require("delay");
+const url = require("url");
 const http = require("http");
 const { promisify } = require("util");
 
@@ -126,6 +127,18 @@ const routes = {
             "Content-Type": "text/html; charset=utf-8",
         });
         res.end();
+    },
+    "/stream": async function (res) {
+        res.writeHead(200, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Transfer-Encoding": "chunked",
+        });
+        await delay(100);
+        res.write("Hello ");
+        await delay(300);
+        res.write("world");
+        await delay(100);
+        res.end("!");
     },
 };
 
