@@ -51,6 +51,16 @@ fetch('https://jsonplaceholder.typicode.com/todos/1')
 ```
 
 Check fetch's [official documentation](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to learn more about the concepts and extended usage.
+
+### Enable text streaming
+
+A non-standard option was added to `fetch` to enable incremental events in React Native's networking layer.
+
+```js
+fetch('https://jsonplaceholder.typicode.com/todos/1', { reactNative: { textStreaming: true } })
+  .then(response => response.body)
+  .then(stream => ...)
+```
 ### Aborting requests
 
 It's possible to [abort an on-going request](https://developers.google.com/web/updates/2017/09/abortable-fetch) and React Native already supports [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController), so there is no need for a polyfill.
