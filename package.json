@@ -40,7 +40,7 @@
   ],
   "scripts": {
     "flow": "flow",
-    "lint": "eslint --cache --ignore-path .gitignore *.js",
+    "lint": "eslint --cache --ignore-path .gitignore .",
     "test:ios": "./run-tests.js --platform ios --simulator 'iPhone 11 (14.1)' test/index.js",
     "test:android": "./run-tests.js --platform android --emulator Pixel_API_28_AOSP test/index.js",
     "release": "standard-version",

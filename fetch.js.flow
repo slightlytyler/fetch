@@ -4,12 +4,15 @@ type CredentialsType = "omit" | "same-origin" | "include";
 
 type ResponseType = "basic" | "error";
 
+type CacheType = "no-store" | "no-cache";
+
 type BodyInit =
     | string
     | URLSearchParams
     | FormData
     | Blob
     | ArrayBuffer
+    | ReadableStream
     | $ArrayBufferView;
 
 type RequestInfo = Request | URL | string;
@@ -22,12 +25,14 @@ type RequestOptions = {|
     mode?: string,
     referrer?: string,
     signal?: ?AbortSignal,
+    cache?: ?CacheType,
 |};
 
 type ResponseOptions = {|
     status?: number,
     statusText?: string,
     headers?: HeadersInit,
+    url?: string,
 |};
 
 type HeadersInit = Headers | { [string]: string };
@@ -113,8 +118,7 @@ declare class Response {
 
     // Body methods and attributes
     bodyUsed: boolean;
-
-    body(): ReadableStream;
+    body: ReadableStream;
     arrayBuffer(): Promise<ArrayBuffer>;
     blob(): Promise<Blob>;
     formData(): Promise<FormData>;
