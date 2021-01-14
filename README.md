@@ -1,358 +1,117 @@
-# window.fetch polyfill
+# Fetch
 
-⚠️ This implementation is still WIP.
+This is a fork of GitHub's fetch [polyfill](https://github.com/github/fetch), the fetch implementation React Native currently [provides](https://github.com/facebook/react-native/blob/master/Libraries/Network/fetch.js). This project features an alternative fetch implementation directy built on top of React Native's networking primitives instead of `XMLHttpRequest` for performance gains. At the same time, it aims to fill in some gaps of the [WHATWG specification](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for fetch, namely the support for text streaming.
 
-This is a fork of [GitHub's fetch polyfill](https://github.com/github/fetch). Its purpose is to get [the fetch polyfill used in React Native](https://github.com/facebook/react-native/blob/master/Libraries/Network/fetch.js) closer to the `whatwg` spec without worrying about breaking older browser versions.
+In practice, functionality-wise, this implementation is a drop-in replacement to GitHub's polyfill as it closely follows its implementation. Do not use this implementation if your application does not require to stream text responses.
+## Motivation
 
-For more context, see [the `github/fetch` issue](https://github.com/github/fetch/issues/746) and [the `react-native` issue](https://github.com/facebook/react-native/issues/27741).
+GitHub's fetch polyfill, originally designed with the intention to be used in web browsers without support for the `fetch` standard, most notably does not support the consumption of a response body as a stream.
 
----
+However, as React Native does not yet provide direct access to the underlying byte stream for responses, we either have to fallback to [XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest) or React Native's networking API for [iOS](https://github.com/facebook/react-native/blob/v0.63.4/Libraries/Network/RCTNetworking.ios.js) and [Android](https://github.com/facebook/react-native/blob/v0.63.4/Libraries/Network/RCTNetworking.android.js). Currently, only strings can be transfered through the bridge, thus binary data has to be base64-encoded ([source](https://github.com/react-native-community/discussions-and-proposals/issues/107)) and while React Native's XHR provides [progress events](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/progress_event) to receive incremental data, it concatenates the response string as data comes in. Although [very inefficient](https://github.com/jonnyreeves/fetch-readablestream/blob/cabccb98788a0141b001e6e775fc7fce87c62081/src/defaultTransportFactory.js#L33), the response can be sliced up and each chunk encoded into its UTF-8 representation with [TextEncoder](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder).
 
-The `fetch()` function is a Promise-based mechanism for programmatically making
-web requests in the browser. This project is a polyfill that implements a subset
-of the standard [fetch specification](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API), enough to make `fetch` a viable
-replacement for most uses of XMLHttpRequest in traditional web applications.
+Instead of relying on `XMLHttpRequest` which degrades performance, we remove it out of the equation and have fetch invoke and control `RCTNetworking` API directly instead. To make `Response.body` work, `ReadableStream`'s controller was integrated with `RCTNetworking`'s progress events. It's important to stress that progress events are only dispatched when the native response type is set to `text` (https://github.com/facebook/react-native/blob/v0.63.4/Libraries/Network/RCTNetworking.mm#L544-L547), therefore limiting streaming to text-only transfers. If you wish to consume binary data, either `blob` or `base64` response types have to be used. In this case, the downside is that the final response body is read as a whole and enqueued to the stream's controller as a single chunk. There is no way to read a partial response of a binary transfer.
 
-## Table of Contents
+For more context, read the following:
+- https://github.com/github/fetch/issues/746
+- https://github.com/facebook/react-native/issues/27741
+- https://hpbn.co/xmlhttprequest/#streaming-data-with-xhr
 
-* [Read this first](#read-this-first)
-* [Installation](#installation)
-* [Usage](#usage)
-  * [Importing](#importing)
-  * [HTML](#html)
-  * [JSON](#json)
-  * [Response metadata](#response-metadata)
-  * [Post form](#post-form)
-  * [Post JSON](#post-json)
-  * [File upload](#file-upload)
-  * [Caveats](#caveats)
-    * [Handling HTTP error statuses](#handling-http-error-statuses)
-    * [Sending cookies](#sending-cookies)
-    * [Receiving cookies](#receiving-cookies)
-    * [Redirect modes](#redirect-modes)
-    * [Obtaining the Response URL](#obtaining-the-response-url)
-    * [Aborting requests](#aborting-requests)
-* [Browser Support](#browser-support)
+## Requirements
 
-## Read this first
+This implementation depends on the following web APIs which are not currently available in React Native:
 
-* If you believe you found a bug with how `fetch` behaves in your browser,
-  please **don't open an issue in this repository** unless you are testing in
-  an old version of a browser that doesn't support `window.fetch` natively.
-  This project is a _polyfill_, and since all modern browsers now implement the
-  `fetch` function natively, **no code from this project** actually takes any
-  effect there. See [Browser support](#browser-support) for detailed
-  information.
+- [`TextEncoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder/TextEncoder) 
+- [`TextDecoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder/TextDecoder)
+- [`ReadableStream`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)
 
-* If you have trouble **making a request to another domain** (a different
-  subdomain or port number also constitutes another domain), please familiarize
-  yourself with all the intricacies and limitations of [CORS][] requests.
-  Because CORS requires participation of the server by implementing specific
-  HTTP response headers, it is often nontrivial to set up or debug. CORS is
-  exclusively handled by the browser's internal mechanisms which this polyfill
-  cannot influence.
+It should be possible remove the dependency on `TextEncoder` and `TextDecoder`, but not on `ReadableStream`. Either way, beware the bundle size of your application will inevitable increase.
 
-* This project **doesn't work under Node.js environments**. It's meant for web
-  browsers only. You should ensure that your application doesn't try to package
-  and run this on the server.
+To polyfill the above APIs, use [react-native-polyfill-globals](https://github.com/acostalima/react-native-polyfill-globals).
 
-* If you have an idea for a new feature of `fetch`, **submit your feature
-  requests** to the [specification's repository](https://github.com/whatwg/fetch/issues).
-  We only add features and APIs that are part of the [Fetch specification][].
-
-## Installation
+## Install
 
 ```
-npm install whatwg-fetch --save
+$ npm install @react-native-community/fetch --save
 ```
 
-As an alternative to using npm, you can obtain `fetch.umd.js` from the
-[Releases][] section. The UMD distribution is compatible with AMD and CommonJS
-module loaders, as well as loading directly into a page via `<script>` tag.
+## Setup
 
-You will also need a Promise polyfill for [older browsers](http://caniuse.com/#feat=promises).
-We recommend [taylorhakes/promise-polyfill](https://github.com/taylorhakes/promise-polyfill)
-for its small size and Promises/A+ compatibility.
+The APIs provided by GitHub's implementation in React Native  have to be replaced by those provided by this implementation. To do so, check and install [react-native-polyfill-globals](https://github.com/acostalima/react-native-polyfill-globals) and follow the instructions therein.
 
 ## Usage
 
-For a more comprehensive API reference that this polyfill supports, refer to
-https://github.github.io/fetch/.
+No need to import anything after the [setup](#setup) is done. All APIs will be available globally.
 
-### Importing
-
-Importing will automatically polyfill `window.fetch` and related APIs:
-
-```javascript
-import 'whatwg-fetch'
-
-window.fetch(...)
-```
-
-If for some reason you need to access the polyfill implementation, it is
-available via exports:
-
-```javascript
-import {fetch as fetchPolyfill} from 'whatwg-fetch'
-
-window.fetch(...)   // use native browser version
-fetchPolyfill(...)  // use polyfill implementation
-```
-
-This approach can be used to, for example, use [abort
-functionality](#aborting-requests) in browsers that implement a native but
-outdated version of fetch that doesn't support aborting.
-
-For use with webpack, add this package in the `entry` configuration option
-before your application entry point:
-
-```javascript
-entry: ['whatwg-fetch', ...]
-```
-
-### HTML
-
-```javascript
-fetch('/users.html')
-  .then(function(response) {
-    return response.text()
-  }).then(function(body) {
-    document.body.innerHTML = body
-  })
-```
-
-### JSON
-
-```javascript
-fetch('/users.json')
-  .then(function(response) {
-    return response.json()
-  }).then(function(json) {
-    console.log('parsed json', json)
-  }).catch(function(ex) {
-    console.log('parsing failed', ex)
-  })
-```
-
-### Response metadata
-
-```javascript
-fetch('/users.json').then(function(response) {
-  console.log(response.headers.get('Content-Type'))
-  console.log(response.headers.get('Date'))
-  console.log(response.status)
-  console.log(response.statusText)
-})
-```
-
-### Post form
-
-```javascript
-var form = document.querySelector('form')
-
-fetch('/users', {
-  method: 'POST',
-  body: new FormData(form)
-})
-```
-
-### Post JSON
-
-```javascript
-fetch('/users', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    name: 'Hubot',
-    login: 'hubot',
-  })
-})
-```
-
-### File upload
-
-```javascript
-var input = document.querySelector('input[type="file"]')
-
-var data = new FormData()
-data.append('file', input.files[0])
-data.append('user', 'hubot')
-
-fetch('/avatars', {
-  method: 'POST',
-  body: data
-})
-```
-
-### Caveats
-
-* The Promise returned from `fetch()` **won't reject on HTTP error status**
-  even if the response is an HTTP 404 or 500. Instead, it will resolve normally,
-  and it will only reject on network failure or if anything prevented the
-  request from completing.
-
-* For maximum browser compatibility when it comes to sending & receiving
-  cookies, always supply the `credentials: 'same-origin'` option instead of
-  relying on the default. See [Sending cookies](#sending-cookies).
-
-* Not all Fetch standard options are supported in this polyfill. For instance,
-  [`redirect`](#redirect-modes) and
-  [`cache`](https://github.github.io/fetch/#caveats) directives are ignored.
-
-#### Handling HTTP error statuses
-
-To have `fetch` Promise reject on HTTP error statuses, i.e. on any non-2xx
-status, define a custom response handler:
-
-```javascript
-function checkStatus(response) {
-  if (response.status >= 200 && response.status < 300) {
-    return response
-  } else {
-    var error = new Error(response.statusText)
-    error.response = response
-    throw error
-  }
-}
-
-function parseJSON(response) {
-  return response.json()
-}
-
-fetch('/users')
-  .then(checkStatus)
-  .then(parseJSON)
-  .then(function(data) {
-    console.log('request succeeded with JSON response', data)
-  }).catch(function(error) {
-    console.log('request failed', error)
-  })
-```
-
-#### Sending cookies
-
-For [CORS][] requests, use `credentials: 'include'` to allow sending credentials
-to other domains:
-
-```javascript
-fetch('https://example.com:1234/users', {
-  credentials: 'include'
-})
-```
-
-The default value for `credentials` is "same-origin".
-
-The default for `credentials` wasn't always the same, though. The following
-versions of browsers implemented an older version of the fetch specification
-where the default was "omit":
-
-* Firefox 39-60
-* Chrome 42-67
-* Safari 10.1-11.1.2
-
-If you target these browsers, it's advisable to always specify `credentials:
-'same-origin'` explicitly with all fetch requests instead of relying on the
-default:
-
-```javascript
-fetch('/users', {
-  credentials: 'same-origin'
-})
-```
-
-Note: due to [limitations of
-XMLHttpRequest](https://github.com/github/fetch/pull/56#issuecomment-68835992),
-using `credentials: 'omit'` is not respected for same domains in browsers where
-this polyfill is active. Cookies will always be sent to same domains in older
-browsers.
-
-#### Receiving cookies
-
-As with XMLHttpRequest, the `Set-Cookie` response header returned from the
-server is a [forbidden header name][] and therefore can't be programmatically
-read with `response.headers.get()`. Instead, it's the browser's responsibility
-to handle new cookies being set (if applicable to the current URL). Unless they
-are HTTP-only, new cookies will be available through `document.cookie`.
-
-#### Redirect modes
-
-The Fetch specification defines these values for [the `redirect`
-option](https://fetch.spec.whatwg.org/#concept-request-redirect-mode): "follow"
-(the default), "error", and "manual".
-
-Due to limitations of XMLHttpRequest, only the "follow" mode is available in
-browsers where this polyfill is active.
-
-#### Obtaining the Response URL
-
-Due to limitations of XMLHttpRequest, the `response.url` value might not be
-reliable after HTTP redirects on older browsers.
-
-The solution is to configure the server to set the response HTTP header
-`X-Request-URL` to the current URL after any redirect that might have happened.
-It should be safe to set it unconditionally.
-
-``` ruby
-# Ruby on Rails controller example
-response.headers['X-Request-URL'] = request.url
-```
-
-This server workaround is necessary if you need reliable `response.url` in
-Firefox < 32, Chrome < 37, Safari, or IE.
-
-#### Aborting requests
-
-This polyfill supports
-[the abortable fetch API](https://developers.google.com/web/updates/2017/09/abortable-fetch).
-However, aborting a fetch requires use of two additional DOM APIs:
-[AbortController](https://developer.mozilla.org/en-US/docs/Web/API/AbortController) and
-[AbortSignal](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal).
-Typically, browsers that do not support fetch will also not support
-AbortController or AbortSignal. Consequently, you will need to include
-[an additional polyfill](https://github.com/mo/abortcontroller-polyfill#readme)
-for these APIs to abort fetches:
+Example:
 
 ```js
-import 'abortcontroller-polyfill/dist/abortcontroller-polyfill-only'
-import {fetch} from 'whatwg-fetch'
-
-// use native browser implementation if it supports aborting
-const abortableFetch = ('signal' in new Request('')) ? window.fetch : fetch
-
-const controller = new AbortController()
-
-abortableFetch('/avatars', {
-  signal: controller.signal
-}).catch(function(ex) {
-  if (ex.name === 'AbortError') {
-    console.log('request aborted')
-  }
-})
-
-// some time later...
-controller.abort()
+fetch('https://jsonplaceholder.typicode.com/todos/1')
+  .then(response => response.json())
+  .then(json => console.log(json))
 ```
 
-## Browser Support
+Check fetch's [official documentation](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to learn more about the concepts and extended usage.
+### Aborting requests
 
-- Chrome
-- Firefox
-- Safari 6.1+
-- Internet Explorer 10+
+It's possible to [abort an on-going request](https://developers.google.com/web/updates/2017/09/abortable-fetch) and React Native already supports [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController), so there is no need for a polyfill.
 
-Note: modern browsers such as Chrome, Firefox, Microsoft Edge, and Safari contain native
-implementations of `window.fetch`, therefore the code from this polyfill doesn't
-have any effect on those browsers. If you believe you've encountered an error
-with how `window.fetch` is implemented in any of these browsers, you should file
-an issue with that browser vendor instead of this project.
+```js
+const controller = new AbortController();
 
+fetch('https://jsonplaceholder.typicode.com/todos/1', { signal: controller.signal })
+  .then(response => response.json())
+  .then(json => console.log(json))
+```
 
-  [fetch specification]: https://fetch.spec.whatwg.org
-  [cors]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
-    "Cross-origin resource sharing"
-  [csrf]: https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)_Prevention_Cheat_Sheet
-    "Cross-site request forgery"
-  [forbidden header name]: https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_header_name
-  [releases]: https://github.com/github/fetch/releases
+Learn more about abortable fetch at 
+
+### Cookies
+
+There is no concept of Cross-Origin Resource Sharing (CORS) in native apps. React Native only accepts a boolean value for the [`credentials`](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials) option. As such, to send cookies you can either use `same-origin` and `include`.
+
+The `Set-Cookie` response header returned from the server is a [forbidden header name][https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_header_name] and therefore can't be programmatically read with `response.headers.get()`. Instead, the platform's native networking stack automatically manages cookies for you.
+
+If you run into issues with cookie-based authentication, read the following:
+- https://build.affinity.co/persisting-sessions-with-react-native-4c46af3bfd83
+- https://medium.com/locastic/react-native-cookie-based-authentication-80ee18f4c71b
+
+Alternatively, you may consider using the [react-native-cookies](https://github.com/react-native-cookies/cookies).
+
+### Request caching directive
+
+The only values supported for the [`cache`](https://developer.mozilla.org/en-US/docs/Web/API/Request/cache) option are `no-cache` and `no-store` and Both achieve exactly the same result. All other values are ignored. Following GitHub's implementation, a cache-busting mechanism is provided by using the query parameter `_` which holds the number of milliseconds elapsed since the Epoch when either `no-cache` or `no-store` are specified.
+
+#### Redirect modes directive
+
+The fetch specification defines these values for the [`redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Request/redirect) option: `follow` (the default), `error`, and `manual`. React Native does not accept such option but it does transparently follow a redirect response given the `Location` header for 30x status codes.
+
+## Tests
+
+To run the test suite, you must use [`react-native-test-runner`](https://github.com/acostalima/react-native-test-runner) CLI. Run the `run-tests.js` wrapper script to spin up a local HTTP server to execute the networking tests against.
+
+### iOS
+
+```
+$ ./run-tests.js --platform ios --simulator '<simulator>' test/index.js 
+```
+
+Where `<simulator>` can be a combination of a device type and iOS version, e.g. `iPhone 11 (14.1)`, or a device UUID.
+Check which simulators are available in your system by running the following command:
+
+```
+$ xcrun xctrace list devices
+```
+
+### Android
+
+```
+$ ./run-tests.js --platform android --emulator '<emulator>' test/index.js 
+```
+
+Where `<emulator>` is the name of the Android Virtual Device (AVD), e.g. `Pixel_API_28_AOSP`.
+Check which emulators are available in your system by running the following command:
+
+```
+$ emulator -list-avds
+```
+
