@@ -73,7 +73,7 @@ fetch('https://jsonplaceholder.typicode.com/todos/1', { signal: controller.signa
   .then(json => console.log(json))
 ```
 
-Learn more about abortable fetch at 
+Learn more about aborting fetch at https://developers.google.com/web/updates/2017/09/abortable-fetch.
 
 ### Cookies
 
