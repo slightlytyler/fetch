@@ -16,16 +16,22 @@
     "@babel/eslint-plugin": "^7.12.1",
     "@babel/plugin-syntax-class-properties": "^7.12.1",
     "@babel/preset-flow": "^7.12.1",
+    "@commitlint/cli": "^11.0.0",
+    "@commitlint/config-conventional": "^11.0.0",
     "@react-native-community/eslint-config": "^2.0.0",
+    "conventional-github-releaser": "^3.1.5",
     "delay": "^4.4.0",
     "eslint": "^6.5.1",
     "eslint-config-prettier": "^6.15.0",
     "eslint-plugin-flowtype": "^5.2.0",
     "execa": "^5.0.0",
     "flow-bin": "^0.136.0",
+    "husky": "^4.3.7",
+    "lint-staged": "^10.5.3",
     "querystring": "^0.2.0",
     "react-native-polyfill-globals": "^1.0.7",
-    "react-native-test-runner": "^1.0.10"
+    "react-native-test-runner": "^1.0.10",
+    "standard-version": "^9.1.0"
   },
   "files": [
     "src",
@@ -36,9 +42,14 @@
     "flow": "flow",
     "lint": "eslint --cache --ignore-path .gitignore *.js",
     "test:ios": "./run-tests.js --platform ios --simulator 'iPhone 11 (14.1)' test/index.js",
-    "test:android": "./run-tests.js --platform android --emulator Pixel_API_28_AOSP test/index.js"
+    "test:android": "./run-tests.js --platform android --emulator Pixel_API_28_AOSP test/index.js",
+    "release": "standard-version",
+    "postrelease": "git push --follow-tags origin HEAD && conventional-github-releaser -p angular"
   },
   "dependencies": {
     "p-defer": "^3.0.0"
+  },
+  "peerDependencies": {
+    "react-native": "~0.63.4"
   }
 }
