@@ -1,20 +1,23 @@
 # Fetch
 
-This is a fork of GitHub's fetch [polyfill](https://github.com/github/fetch), the fetch implementation React Native currently [provides](https://github.com/facebook/react-native/blob/master/Libraries/Network/fetch.js). This project features an alternative fetch implementation directy built on top of React Native's networking primitives instead of `XMLHttpRequest` for performance gains. At the same time, it aims to fill in some gaps of the [WHATWG specification](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for fetch, namely the support for text streaming.
+This is a fork of GitHub's fetch [polyfill](https://github.com/github/fetch), the fetch implementation React Native currently [provides](https://github.com/facebook/react-native/blob/master/Libraries/Network/fetch.js). This project features an alternative fetch implementation directy built on top of React Native's [Networking API](https://github.com/facebook/react-native/tree/master/Libraries/Network) instead of `XMLHttpRequest` for performance gains. At the same time, it aims to fill in some gaps of the [WHATWG specification](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for fetch, namely the support for text streaming.
 
-In practice, functionality-wise, this implementation is a drop-in replacement to GitHub's polyfill as it closely follows its implementation. Do not use this implementation if your application does not require to stream text responses.
+In practice, functionality-wise, this implementation is a drop-in replacement to GitHub's polyfill as it closely follows its implementation. Do not use this implementation if your application does not require to stream text.
 ## Motivation
 
 GitHub's fetch polyfill, originally designed with the intention to be used in web browsers without support for the fetch standard, most notably does not support the consumption of a response body as a stream.
 
 However, as React Native does not yet provide direct access to the underlying byte stream for responses, we either have to fallback to [XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest) or React Native's networking API for [iOS](https://github.com/facebook/react-native/blob/v0.63.4/Libraries/Network/RCTNetworking.ios.js) and [Android](https://github.com/facebook/react-native/blob/v0.63.4/Libraries/Network/RCTNetworking.android.js). Currently, only strings can be transfered through the bridge, thus binary data has to be base64-encoded ([source](https://github.com/react-native-community/discussions-and-proposals/issues/107)) and while React Native's XHR provides [progress events](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/progress_event) to receive incremental data, it concatenates the response string as data comes in. Although [very inefficient](https://github.com/jonnyreeves/fetch-readablestream/blob/cabccb98788a0141b001e6e775fc7fce87c62081/src/defaultTransportFactory.js#L33), the response can be sliced up, each chunk encoded into its UTF-8 representation with [TextEncoder](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder) and finally enqueued to the stream.
 
-Instead of relying on `XMLHttpRequest` which degrades performance, we remove it out of the equation and have fetch invoke and control `RCTNetworking` API directly instead. To make `Response.body` work, `ReadableStream`'s controller was integrated with `RCTNetworking`'s progress events. It's important to stress that progress events are only dispatched when the native response type is set to `text` (https://github.com/facebook/react-native/blob/v0.63.4/Libraries/Network/RCTNetworking.mm#L544-L547), therefore limiting streaming to text-only transfers. If you wish to consume binary data, either `blob` or `base64` response types have to be used. In this case, the downside is that the final response body is read as a whole and enqueued to the stream's controller as a single chunk. There is no way to read a partial response of a binary transfer.
+Instead of relying on `XMLHttpRequest`, which degrades performance, we remove it out of the equation and have fetch interact with React Native's Networking API directly instead. To make `Response.body` work, `ReadableStream`'s controller was integrated with native progress events. It's important to stress that progress events are only fired when the native response type is set to `text` (https://github.com/facebook/react-native/blob/v0.63.4/Libraries/Network/RCTNetworking.mm#L544-L547), therefore limiting streaming to text-only transfers. If you wish to consume binary data, either `blob` or `base64` response types have to be used. In this case, the downside is that the final response body is read as a whole and enqueued to the stream's controller as a single chunk. There is no way to read a partial response of a binary transfer.
 
 For more context, read the following:
 - https://github.com/github/fetch/issues/746
 - https://github.com/facebook/react-native/issues/27741
 - https://hpbn.co/xmlhttprequest/#streaming-data-with-xhr
+
+Related:
+- https://github.com/react-native-community/discussions-and-proposals/issues/99
 
 ## Requirements
 

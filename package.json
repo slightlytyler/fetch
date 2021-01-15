@@ -1,6 +1,6 @@
 {
   "name": "@react-native-community/fetch",
-  "description": "A fetch API polyfill for React Native with text streaming support built on top of RCTNetwoking.",
+  "description": "A fetch API polyfill for React Native with text streaming support.",
   "version": "1.0.0",
   "main": "fetch.js",
   "author": "André Costa Lima <andreclima.pt@gmail.com> (https://github.com/acostalima/)",
