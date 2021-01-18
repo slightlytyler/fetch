@@ -23,6 +23,7 @@ Related:
 
 This implementation depends on the following web APIs which are not currently available in React Native:
 
+- React Native v0.62.0+
 - [`TextEncoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder/TextEncoder) 
 - [`TextDecoder`](https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder/TextDecoder)
 - [`ReadableStream`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)
