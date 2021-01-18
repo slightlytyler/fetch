@@ -84,9 +84,10 @@ Learn more about aborting fetch at https://developers.google.com/web/updates/201
 
 There is no concept of Cross-Origin Resource Sharing (CORS) in native apps. React Native only accepts a boolean value for the [`credentials`](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials) option. As such, to send cookies you can either use `same-origin` and `include`.
 
-The `Set-Cookie` response header returned from the server is a [forbidden header name][https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_header_name] and therefore can't be programmatically read with `response.headers.get()`. Instead, the platform's native networking stack automatically manages cookies for you.
+The `Set-Cookie` response header returned from the server is a [forbidden header name](https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_header_name) and therefore can't be programmatically read with `response.headers.get()`. Instead, the platform's native networking stack automatically manages cookies for you.
 
 If you run into issues with cookie-based authentication, read the following:
+- https://reactnative.dev/docs/network#known-issues-with-fetch-and-cookie-based-authentication
 - https://build.affinity.co/persisting-sessions-with-react-native-4c46af3bfd83
 - https://medium.com/locastic/react-native-cookie-based-authentication-80ee18f4c71b
 
