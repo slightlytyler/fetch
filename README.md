@@ -2,7 +2,8 @@
 
 This is a fork of GitHub's fetch [polyfill](https://github.com/github/fetch), the fetch implementation React Native currently [provides](https://github.com/facebook/react-native/blob/master/Libraries/Network/fetch.js). This project features an alternative fetch implementation directy built on top of React Native's [Networking API](https://github.com/facebook/react-native/tree/master/Libraries/Network) instead of `XMLHttpRequest` for performance gains. At the same time, it aims to fill in some gaps of the [WHATWG specification](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) for fetch, namely the support for text streaming.
 
-In practice, functionality-wise, this implementation is a drop-in replacement to GitHub's polyfill as it closely follows its implementation. Do not use this implementation if your application does not require to stream text.
+In practice, this implementation is a drop-in replacement to GitHub's polyfill as it closely follows its implementation. Do not use this implementation if your application does not require to stream text.
+
 ## Motivation
 
 GitHub's fetch polyfill, originally designed with the intention to be used in web browsers without support for the fetch standard, most notably does not support the consumption of a response body as a stream.
@@ -97,7 +98,7 @@ Alternatively, you may consider using the [react-native-cookies](https://github.
 
 The only values supported for the [`cache`](https://developer.mozilla.org/en-US/docs/Web/API/Request/cache) option are `no-cache` and `no-store` and Both achieve exactly the same result. All other values are ignored. Following GitHub's implementation, a cache-busting mechanism is provided by using the query parameter `_` which holds the number of milliseconds elapsed since the Epoch when either `no-cache` or `no-store` are specified.
 
-#### Redirect modes directive
+### Redirect modes directive
 
 The fetch specification defines these values for the [`redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Request/redirect) option: `follow` (the default), `error`, and `manual`. React Native does not accept such option but it does transparently follow a redirect response given the `Location` header for 30x status codes.
 
