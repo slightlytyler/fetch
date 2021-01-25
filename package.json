@@ -1,5 +1,5 @@
 {
-  "name": "@react-native-community/fetch",
+  "name": "reach-native-fetch-api",
   "description": "A fetch API polyfill for React Native with text streaming support.",
   "version": "1.0.0",
   "main": "fetch.js",
@@ -8,7 +8,8 @@
   "license": "MIT",
   "keywords": [
     "react-native",
-    "fetch"
+    "fetch",
+    "stream"
   ],
   "devDependencies": {
     "@babel/core": "^7.12.3",
@@ -50,6 +51,6 @@
     "p-defer": "^3.0.0"
   },
   "peerDependencies": {
-    "react-native": "~0.63.4"
+    "react-native": ">=0.62"
   }
 }

@@ -37,7 +37,7 @@ To polyfill the above APIs, use [react-native-polyfill-globals](https://github.c
 ## Install
 
 ```
-$ npm install @react-native-community/fetch --save
+$ npm install react-native-fetch-api --save
 ```
 
 ## Setup
