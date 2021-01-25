@@ -1,22 +1,25 @@
 import BlobManager from "react-native/Libraries/Blob/BlobManager";
 import Response from "./Response";
-// import { createBlobReader } from "./utils";
+import { createBlobReader } from "./utils";
 
 class StreamBlobResponse {
     constructor(blobData, stream, streamController, options) {
         const blob = BlobManager.createFromOptions(blobData);
         this._blobData = blobData;
         this._blobResponse = new Response(blob, options);
-        // this._streamResponse = new Response(stream, options);
 
-        // return createBlobReader(blob)
-        //     .readAsArrayBuffer()
-        //     .then((arrayBuffer) => {
-        //         this._arrayBufferResponse = new Response(arrayBuffer, options);
-        //         streamController.enqueue(new Uint8Array(arrayBuffer));
+        return createBlobReader(blob)
+            .readAsArrayBuffer()
+            .then((arrayBuffer) => {
+                this._streamResponse = new Response(stream, options);
+                this._arrayBufferResponse = new Response(arrayBuffer, options);
+                streamController.enqueue(new Uint8Array(arrayBuffer));
 
-        //         return this;
-        //     });
+                return this;
+            })
+            .catch(() => {
+                return this;
+            });
     }
 
     get bodyUsed() {

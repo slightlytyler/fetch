@@ -10,11 +10,11 @@ function createBlobReader(blob) {
     });
 
     return {
-        readAsArrayBuffer: () => {
+        readAsArrayBuffer: async () => {
             reader.readAsArrayBuffer(blob);
             return fileReaderReady;
         },
-        readAsText: () => {
+        readAsText: async () => {
             reader.readAsText(blob);
             return fileReaderReady;
         },

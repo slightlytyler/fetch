@@ -1,8 +1,14 @@
-import "react-native-polyfill-globals/auto";
 import { Platform } from "react-native";
+import { polyfill as polyfillEncoding } from "react-native-polyfill-globals/src/encoding";
+import { polyfill as polyfillReadableStream } from "react-native-polyfill-globals/src/readable-stream";
+import { polyfill as polyfillURL } from "react-native-polyfill-globals/src/url";
 import { test } from "zora";
 import delay from "delay";
 import { Headers, Request, Response, fetch } from "../";
+
+polyfillEncoding();
+polyfillReadableStream();
+polyfillURL();
 
 const BASE_URL = Platform.select({
     android: "http://10.0.2.2:8082",
@@ -21,11 +27,11 @@ function createBlobReader(blob) {
     });
 
     return {
-        readAsArrayBuffer: () => {
+        readAsArrayBuffer: async () => {
             reader.readAsArrayBuffer(blob);
             return fileReaderReady;
         },
-        readAsText: () => {
+        readAsText: async () => {
             reader.readAsText(blob);
             return fileReaderReady;
         },

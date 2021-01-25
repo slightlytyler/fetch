@@ -36,7 +36,10 @@
     "querystring": "^0.2.0",
     "react-native-polyfill-globals": "^2.0.0",
     "react-native-test-runner": "^2.0.0",
+    "react-native-url-polyfill": "^1.2.0",
     "standard-version": "^9.1.0",
+    "text-encoding": "^0.7.0",
+    "web-streams-polyfill": "^3.0.1",
     "zora": "^4.0.2"
   },
   "files": [
