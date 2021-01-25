@@ -30,7 +30,7 @@
     "husky": "^4.3.7",
     "lint-staged": "^10.5.3",
     "querystring": "^0.2.0",
-    "react-native-polyfill-globals": "^1.0.7",
+    "react-native-polyfill-globals": "^2.0.0",
     "react-native-test-runner": "^2.0.0",
     "standard-version": "^9.1.0",
     "zora": "^4.0.2"
