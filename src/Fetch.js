@@ -99,7 +99,7 @@ class Fetch {
     }
 
     __abort() {
-        Networking.abortRequest(this._requestId);
+        this._requestId && Networking.abortRequest(this._requestId);
         this._streamController?.error(new AbortError());
         this._deferredPromise.reject(new AbortError());
         this.__clearNetworkSubscriptions();
