@@ -179,9 +179,54 @@ class Body {
     }
 
     get body() {
-        // For Request objects, a streaming body is not supported.
-        // It's not possible to upload a stream to a server in React Native.
-        return this._bodyReadableStream;
+        if (this._bodyReadableStream) {
+            return this._bodyReadableStream;
+        }
+
+        if (this._bodyArrayBuffer) {
+            const typedArray = new Uint8Array(this._bodyArrayBuffer);
+
+            return new ReadableStream({
+                start(controller) {
+                    typedArray.forEach((chunk) => {
+                        controller.enqueue(chunk);
+                    });
+
+                    controller.close();
+                },
+            });
+        }
+
+        if (this._bodyBlob) {
+            return new ReadableStream({
+                start: async (controller) => {
+                    const arrayBuffer = await createBlobReader(
+                        this._bodyBlob
+                    ).readAsArrayBuffer();
+                    const typedArray = new Uint8Array(arrayBuffer);
+
+                    typedArray.forEach((chunk) => {
+                        controller.enqueue(chunk);
+                    });
+
+                    controller.close();
+                },
+            });
+        }
+
+        const text = this._bodyFormData?.toString() ?? this._bodyText;
+
+        return new ReadableStream({
+            start: async (controller) => {
+                const typedArray = new Uint8Array(text);
+
+                typedArray.forEach((chunk) => {
+                    controller.enqueue(chunk);
+                });
+
+                controller.close();
+            },
+        });
     }
 }
 
