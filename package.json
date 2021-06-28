@@ -57,8 +57,5 @@
   },
   "dependencies": {
     "p-defer": "^3.0.0"
-  },
-  "peerDependencies": {
-    "react-native": ">=0.62"
   }
 }
