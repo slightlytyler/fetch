@@ -1856,4 +1856,53 @@ test("fetch method", (t) => {
             t.eq(await res3.text(), "bar4");
         });
     });
+
+    t.test("cloning", (t) => {
+        t.test("cloning response from text stream", async (t) => {
+            const url = new URL("/stream", BASE_URL);
+            const res = await fetch(url, {
+                reactNative: { textStreaming: true },
+            });
+            const clone = res.clone();
+            const stream = await clone.body;
+            const text = new TextDecoder().decode(await drainStream(stream));
+
+            t.ok(
+                stream instanceof ReadableStream,
+                "Response implements streaming body"
+            );
+            t.eq(text, "Hello world!");
+        });
+
+        t.test("cloning blob response", async (t) => {
+            const url = new URL("/request", BASE_URL);
+            const res = await fetch(url, {
+                headers: {
+                    Accept: "application/json",
+                },
+            });
+            const clone = res.clone();
+            const json = await clone.json();
+            t.eq(json.headers.accept, "application/json");
+        });
+
+        t.test("cloning array buffer response", async (t) => {
+            const url = new URL("/binary", BASE_URL);
+            const res = await fetch(url, {
+                reactNative: {
+                    __nativeResponseType: "base64",
+                },
+            });
+            const clone = res.clone();
+            const buf = await clone.arrayBuffer();
+
+            t.ok(buf instanceof ArrayBuffer, "buf is an ArrayBuffer instance");
+            t.eq(buf.byteLength, 256, "buf.byteLength is correct");
+
+            const expected = Array.from({ length: 256 }, (_, i) => i);
+            const actual = Array.from(new Uint8Array(buf));
+
+            t.eq(actual, expected);
+        });
+    });
 });
